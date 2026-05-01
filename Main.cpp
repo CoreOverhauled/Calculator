@@ -6,7 +6,6 @@
 }*/
 
 int main() {
-	using enum ETrigFunc;
 	/*while (true) {
 		Calculate();
 		std::cout << "Go again? y/n(assumed)";
@@ -17,7 +16,7 @@ int main() {
 		}
 		break;
 	}*/
-	//
+	std::cout << TrigFunction(0, ETrigFunc::cot).error();
 	constexpr double X = 2.448618111050801;
 	std::string Input;
 	std::getline(std::cin, Input);

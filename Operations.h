@@ -66,7 +66,6 @@ enum class EOperation : uint8_t {
 };
 
 enum class ETrigFunc : uint8_t {
-	None = 0,
 	sin,
 	cos,
 	tan,
@@ -453,26 +452,42 @@ static std::unordered_map<std::string, Token<T>> Functions{};//for later
 #pragma endregion
 
 #pragma region Error Type
-template<typename... FuncArgs>
+
+static std::string ToString(const std::vector<double>& X) {
+	std::string Result = "";
+	for (const auto& x : X) {
+		Result += std::to_string(x);
+		Result += ", ";
+	}
+	Result.pop_back();
+	Result.pop_back();
+	return Result;
+}
+static std::string ToString(const std::vector<std::complex<double>>& X) {
+	std::string Result = "";
+	for (const auto& x : X) {
+		Result += '(' + std::to_string(x.real()) + ", " + std::to_string(x.imag()) + ')';
+		Result += ", ";
+	}
+	Result.pop_back();
+	Result.pop_back();
+	return Result;
+}
+inline static std::string ToString(const std::complex<double>& x) {
+	return '(' + std::to_string(x.real()) + ", " + std::to_string(x.imag()) + ')';
+}
+
+template<typename FuncArgType>
 class MathError {
 
 public:
-	MathError(EOperation InFunction, std::string InErrorMessage, std::tuple<FuncArgs...> InPassedArguments)
-		: Function(InFunction), ErrorMessage(InErrorMessage), PassedArguments(InPassedArguments) {
+	MathError(EOperation InFunction, std::string InErrorMessage, std::vector<FuncArgType> InPassedArguments)
+		: Function(InFunction), ErrorMessage("Error in operation: " + OperationNames.at(Function)
+			+ ": " + InErrorMessage + " (Operands were:" + ToString(InPassedArguments) + ')') {
 	}
 
-
 	friend std::ostream& operator<<(std::ostream& Out, const MathError& Error) {
-		Out << "Error in operation: " << OperationNames.find(Function) << ": " << ErrorMessage
-			<< "(Operands were:";
-		for (uint8_t i = 0; i < static_cast<uint8_t>(std::tuple_size<std::tuple<FuncArgs...>>()); i++) {
-			if (i != 0) {
-				Out << ',';
-			}
-			Out << ' ' << std::get<i>(PassedArguments);
-		}
-		Out << ')';
-		return Out;
+		return Out << Error.GetErrorMessage();
 	}
 	std::string GetErrorMessage() const {
 		return ErrorMessage;
@@ -480,36 +495,36 @@ public:
 private:
 	EOperation Function = EOperation::None;
 	std::string ErrorMessage = "";
-	std::tuple<FuncArgs...> PassedArguments = std::tuple<FuncArgs...>();
 };
 #pragma endregion
 
 #pragma endregion
 
-
+//Move this whole region inside eval
 #pragma region Basic Operations
 template<Number T>
-std::expected<T, MathError<T, T>> Add(T A, T B) noexcept {
+std::expected<T, MathError<T>> Add(T A, T B) noexcept {
 	return A + B;
 };
 
+
 template<Number T>
-std::expected<T, MathError<T, T>> Substract(T A, T B) noexcept {
+std::expected<T, MathError<T>> Substract(T A, T B) noexcept {
 	return A - B;
 };
 
 template<Number T>
-std::expected<T, MathError<T, T>> Multiply(T A, T B) noexcept {
+std::expected<T, MathError<T>> Multiply(T A, T B) noexcept {
 	return A * B;
 };
 
 template<Number T>
-std::expected<T, MathError<T, T>> Divide(T A, T B) noexcept {
+std::expected<T, MathError<T>> Divide(T A, T B) noexcept {
 	if (B == T(0)) {
 		return std::unexpected(MathError(
 			EOperation::Divide,
 			"Division by zero is not allowed",
-			std::make_tuple(A, B)));
+			std::vector<T>{A, B}));
 	}
 	return A / B;
 };
@@ -526,21 +541,22 @@ std::expected<T, MathError<T>> Negate(T A) noexcept {
 
 #pragma endregion
 
+//Same as above
 #pragma region Power Related Operations
 
 #pragma region Exponents
 template<RealNumber T>
-std::expected<T, MathError<T, T>> Power(T Base, T Exp) noexcept {
+std::expected<T, MathError<T>> Power(T Base, T Exp) noexcept {
 	if (Base < 0 && std::fmod(Exp, 1) != 0) {
 		return std::unexpected(MathError(
 			EOperation::Power,
 			"Raising negative numbers to non-whole exponents is only supported for complex numbers",
-			std::make_tuple(Base, Exp)));
+			std::vector<T>{Base, Exp}));
 	}
 	return std::pow(Base, Exp);
 };
 
-static std::expected<std::complex<double>, MathError<std::complex<double>, std::complex<double>>>
+static std::expected<std::complex<double>, MathError<std::complex<double>>>
 Power(std::complex<double> Base, std::complex<double> Exp) noexcept {
 	return std::pow(Base, Exp);
 };
@@ -555,24 +571,24 @@ std::expected<T, MathError<T>> Exponential(T Exp) noexcept {
 #pragma region Logarithms
 
 template<RealNumber T>
-std::expected<T, MathError<T, T>> Logarithm(T Base, T Num) noexcept {
+std::expected<T, MathError<T>> Logarithm(T Base, T Num) noexcept {
 	if (Base <= 0) {
 		return std::unexpected(MathError(
 			EOperation::Logarithm,
 			"The base of a logarithm must be positive",
-			std::make_tuple(Base, Num)));
+			std::vector<T>{Base, Num}));
 	}
 	if (Num <= 0) {
 		return std::unexpected(MathError(
 			EOperation::Logarithm,
 			"You can only take the logarithm of positive numbers",
-			std::make_tuple(Base, Num)));
+			std::vector<T>{Base, Num}));
 	}
 	return std::log(Num) / std::log(Base);
 };
 
-static std::expected<std::complex<double>, MathError<std::complex<double>,
-	std::complex<double>>> Logarithm(std::complex<double> Base,
+static std::expected<std::complex<double>, MathError<std::complex<double>>>
+Logarithm(std::complex<double> Base,
 		std::complex<double> Num) noexcept {
 	return std::log(Num) / std::log(Base);
 };
@@ -583,7 +599,7 @@ std::expected<T, MathError<T>> Ln(T Num) noexcept {
 		return std::unexpected(MathError(
 			EOperation::Ln,
 			"You can only take the logarithm of positive numbers",
-			std::make_tuple(Num)));
+			std::vector<T>{Num}));
 	}
 	return std::log(Num);
 };
@@ -598,21 +614,23 @@ static std::expected<std::complex<double>, MathError<std::complex<double>>> Ln(
 
 #pragma endregion
 
+//rewrite for no templates, change function map to constexpr function?, add checking for infinity
+//where relevant
 #pragma region Trig Functions
 
-extern double cot(double x) noexcept;
-extern double coth(double x) noexcept;
-extern double acot(double x) noexcept;
-extern double acoth(double x) noexcept;
-extern std::complex<double> cot(const std::complex<double>& x) noexcept;
-extern std::complex<double> coth(const std::complex<double>& x) noexcept;
-extern std::complex<double> acot(const std::complex<double>& x) noexcept;
-extern std::complex<double> acoth(const std::complex<double>& x) noexcept;
+double cot(double x) noexcept;
+double coth(double x) noexcept;
+double acot(double x) noexcept;
+double acoth(double x) noexcept;
+std::complex<double> cot(const std::complex<double>& x) noexcept;
+std::complex<double> coth(const std::complex<double>& x) noexcept;
+std::complex<double> acot(const std::complex<double>& x) noexcept;
+std::complex<double> acoth(const std::complex<double>& x) noexcept;
 
 template<typename Ret, typename Arg>
 	requires ((std::same_as<Ret, double> && std::same_as<Arg, double>) || 
 		(std::same_as<Ret, std::complex<double>> && std::same_as<Arg, const std::complex<double>&>))
-extern const std::map<ETrigFunc, std::function<Ret(Arg)>> ETrigFuncToFunctionMap
+static const std::map<ETrigFunc, std::function<Ret(Arg)>> ETrigFuncToFunctionMap
 {
 	{ETrigFunc::sin, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&std::sin))},
 	{ETrigFunc::cos, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&std::cos))},
@@ -632,24 +650,20 @@ extern const std::map<ETrigFunc, std::function<Ret(Arg)>> ETrigFuncToFunctionMap
 	{ETrigFunc::acoth, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&acoth)) }
 };
 
-template<RealNumber EvalTo, RealNumber T1, ETrigFunc Function>
-std::expected<EvalTo, MathError<T1>> TrigFunction(T1 A) noexcept {
-	return ETrigFuncToFunctionMap<double, double>.at(Function)(static_cast<double>(A));
-};
 
-template<ETrigFunc Function>
-std::expected<std::complex<double>, MathError<const std::complex<double>&>> TrigFunction(
-	const std::complex<double>& A) noexcept {
-	return ETrigFuncToFunctionMap<std::complex<double>,
-		const std::complex<double>&>.at(Function)(A);
-};
+std::expected<double, MathError<double>>
+TrigFunction(double A, ETrigFunc Function) noexcept;
+
+std::expected<std::complex<double>, MathError<const std::complex<double>&>>
+TrigFunction( const std::complex<double>& A, ETrigFunc Function) noexcept;
 #pragma endregion
 
+//rewrite for no templates + switch to const string &
 #pragma region Iterating Operations
 
 template<typename T, typename ExprType = typename T(typename std::tuple<const std::string, T>)>
 	requires Number<T>
-std::expected<T, MathError<T, T>> Sum(T BoundMin, T BoundMax,
+std::expected<T, MathError<T>> Sum(T BoundMin, T BoundMax,
 	const std::string IteratorVariableName, ExprType Expression) noexcept {
 	if (static_cast<uint64_t>(BoundMax) < static_cast<uint64_t>(BoundMin)) {
 		return T(0);
@@ -664,7 +678,7 @@ std::expected<T, MathError<T, T>> Sum(T BoundMin, T BoundMax,
 
 template<typename T, typename ExprType = typename T(typename std::tuple<const std::string, T>)>
 	requires Number<T>
-std::expected<T, MathError<std::vector<T>>> Sum(
+std::expected<T, MathError<T>> Sum(
 	std::vector<T> IteratedSet, 
 	const std::string IteratorVariableName, ExprType Expression) noexcept {
 	if (IteratedSet.size() == 0) {
@@ -680,7 +694,7 @@ std::expected<T, MathError<std::vector<T>>> Sum(
 
 template<typename T, typename ExprType = typename T(typename std::tuple<const std::string, T>)>
 	requires Number<T>
-std::expected<T, MathError<T, T>> Product(T BoundMin, T BoundMax,
+std::expected<T, MathError<T>> Product(T BoundMin, T BoundMax,
 	const std::string IteratorVariableName, ExprType Expression) noexcept {
 	if (static_cast<uint64_t>(BoundMax) < static_cast<uint64_t>(BoundMin)) {
 		return T(1);
@@ -695,7 +709,7 @@ std::expected<T, MathError<T, T>> Product(T BoundMin, T BoundMax,
 
 template<typename T, typename ExprType = typename T(typename std::tuple<const std::string, T>)>
 	requires Number<T>
-std::expected<T, MathError<std::vector<T>>> Product(
+std::expected<T, MathError<T>> Product(
 	std::vector<T> IteratedSet,
 	const std::string IteratorVariableName, ExprType Expression) noexcept {
 	if (IteratedSet.size() == 0) {
@@ -711,8 +725,10 @@ std::expected<T, MathError<std::vector<T>>> Product(
 
 #pragma endregion
 
+//inside
 #pragma region Factorial Related Operations
 
+//Make variables local to cpp or propably function?
 #pragma region Complex Gamma Implementation
 
 constexpr static const int g = 7;
@@ -739,6 +755,7 @@ static std::complex<double> tgamma(const std::complex<double>& z) noexcept
 
 #pragma endregion
 
+//get rid of templates
 #pragma region Factorial
 
 template<RealNumber EvalTo, RealNumber T>
@@ -747,7 +764,7 @@ std::expected<EvalTo, MathError<T>> Factorial(T A) noexcept {
 		return std::unexpected(MathError<T>(
 			EOperation::Factorial,
 			"The factorial does not exist for negative integers.",
-			std::make_tuple(A)));
+			std::vector<T>{A}));
 	}
 	return static_cast<EvalTo>(std::tgamma(A+1));
 };
@@ -760,14 +777,11 @@ static std::expected<std::complex<double>, MathError<std::complex<double>>> Fact
 
 #pragma endregion
 
+//get rid of templates and unnecessary validity checks
 #pragma region nCr
 
-static std::string to_string(std::complex<double> A) {
-	return "(" + std::to_string(std::real(A)) + ", " + std::to_string(std::imag(A)) + ")";
-}
-
 template<RealNumber EvalTo, RealNumber T>
-std::expected<EvalTo, MathError<T, T>> nCr(T N, T R) {
+std::expected<EvalTo, MathError<T>> nCr(T N, T R) {
 	if (R < T(0) || R > N) {
 		return 0;
 	}
@@ -775,28 +789,28 @@ std::expected<EvalTo, MathError<T, T>> nCr(T N, T R) {
 		b = Factorial<T, T>(N - R),
 		c = Factorial<T, T>(R);
 	[[unlikely]] if (!a.has_value()) {
-		return std::unexpected(MathError<T, T>(
+		return std::unexpected(MathError<T>(
 			EOperation::nCr,
 			a.error().GetErrorMessage().append(
 				std::string(" [Encountered when evaluating Factorial(").append(
 					std::to_string(N).append(std::string(")]")))),
-			std::make_tuple(N, R)));
+			std::vector<T>{N, R}));
 	}
 	[[unlikely]] if (!b.has_value()) {
-		return std::unexpected(MathError<T, T>(
+		return std::unexpected(MathError<T>(
 			EOperation::nCr,
 			b.error().GetErrorMessage().append(
 				std::string(" [Encountered when evaluating Factorial(").append(
 					std::to_string(N - R).append(std::string(")]")))),
-			std::make_tuple(N, R)));
+			std::vector<T>{N, R}));
 	}
 	[[unlikely]] if (!c.has_value()) {
-		return std::unexpected(MathError<T, T>(
+		return std::unexpected(MathError<T>(
 			EOperation::nCr,
 			c.error().GetErrorMessage().append(
 				std::string(" [Encountered when evaluating Factorial(").append(
 					std::to_string(R).append(std::string(")]")))),
-			std::make_tuple(N, R)));
+			std::vector<T>{N, R}));
 	}
 	return static_cast<EvalTo>(a.value() / (b.value() * c.value()));
 }
@@ -804,65 +818,65 @@ std::expected<EvalTo, MathError<T, T>> nCr(T N, T R) {
 
 
 static std::expected<std::complex<double>, MathError<
-	std::complex<double>, std::complex<double>>> nCr(
-		std::complex<double> N, std::complex<double> R) {
+	std::complex<double>>> nCr(std::complex<double> N, std::complex<double> R) {
 	std::expected<std::complex<double>, MathError<std::complex<double>>> 
 		a = Factorial(N),
 		b = Factorial(N - R),
 		c = Factorial(R);
 	if (!a.has_value()) {
-		return std::unexpected(MathError<std::complex<double>, std::complex<double>>(
+		return std::unexpected(MathError<std::complex<double>>(
 			EOperation::nCr,
 			a.error().GetErrorMessage().append(
 				std::string(" [Encountered when evaluating Factorial(").append(
-					to_string(N).append(std::string(")]")))),
-			std::make_tuple(N, R)));
+					ToString(N).append(std::string(")]")))),
+			std::vector<std::complex<double>>{N, R}));
 	}
 	if (!b.has_value()) {
-		return std::unexpected(MathError<std::complex<double>, std::complex<double>>(
+		return std::unexpected(MathError<std::complex<double>>(
 			EOperation::nCr,
 			b.error().GetErrorMessage().append(
 				std::string(" [Encountered when evaluating Factorial(").append(
-					to_string(N - R).append(std::string(")]")))),
-			std::make_tuple(N, R)));
+					ToString(N - R).append(std::string(")]")))),
+			std::vector<std::complex<double>>{N, R}));
 	}
 	if (!c.has_value()) {
-		return std::unexpected(MathError<std::complex<double>, std::complex<double>>(
+		return std::unexpected(MathError<std::complex<double>>(
 			EOperation::nCr,
 			c.error().GetErrorMessage().append(
 				std::string(" [Encountered when evaluating Factorial(").append(
-					to_string(R).append(std::string(")]")))),
-			std::make_tuple(N, R)));
+					ToString(R).append(std::string(")]")))),
+			std::vector<std::complex<double>>{N, R}));
 	}
 	return a.value() / (b.value() * c.value());
 }
 
 #pragma endregion
 
+//get rid of templates and unnecessary validity checks
 #pragma region nPr
 
 template<RealNumber EvalTo, RealNumber T>
-std::expected<EvalTo, MathError<T, T>> nPr(T N, T R) {
+std::expected<EvalTo, MathError<T>> nPr(T N, T R) {
 	if (R < T(0) || R > N) {
 		return 0;
 	}
 	std::expected<T, MathError<T>> a = Factorial<T, T>(N),
 		b = Factorial<T, T>(N - R);
 	[[unlikely]] if (!a.has_value()) {
-		return std::unexpected(MathError<T, T>(
+		return std::unexpected(MathError<T>(
 			EOperation::nPr,
 			a.error().GetErrorMessage().append(
 				std::string(" [Encountered when evaluating Factorial(").append(
 					std::to_string(N).append(std::string(")]")))),
-			std::make_tuple(N, R)));
+			std::vector<T>{N, R}));
 	}
 	[[unlikely]] if (!b.has_value()) {
-		return std::unexpected(MathError<T, T>(
+		return std::unexpected(MathError<T>(
 			EOperation::nPr,
 			b.error().GetErrorMessage().append(
 				std::string(" [Encountered when evaluating Factorial(").append(
 					std::to_string(N - R).append(std::string(")]")))),
-			std::make_tuple(N, R)));
+			std::vector<T>{N, R}));
 	}
 	return static_cast<EvalTo>(a.value() / b.value());
 }
@@ -870,26 +884,25 @@ std::expected<EvalTo, MathError<T, T>> nPr(T N, T R) {
 
 
 static std::expected<std::complex<double>, MathError<
-	std::complex<double>, std::complex<double>>> nPr(
-		std::complex<double> N, std::complex<double> R) {
+	std::complex<double>>> nPr(std::complex<double> N, std::complex<double> R) {
 	std::expected<std::complex<double>, MathError<std::complex<double>>>
 		a = Factorial(N),
 		b = Factorial(N - R);
 	if (!a.has_value()) {
-		return std::unexpected(MathError<std::complex<double>, std::complex<double>>(
+		return std::unexpected(MathError<std::complex<double>>(
 			EOperation::nPr,
 			a.error().GetErrorMessage().append(
 				std::string(" [Encountered when evaluating Factorial(").append(
-					to_string(N).append(std::string(")]")))),
-			std::make_tuple(N, R)));
+					ToString(N).append(std::string(")]")))),
+			std::vector<std::complex<double>>{N, R}));
 	}
 	if (!b.has_value()) {
-		return std::unexpected(MathError<std::complex<double>, std::complex<double>>(
+		return std::unexpected(MathError<std::complex<double>>(
 			EOperation::nPr,
 			b.error().GetErrorMessage().append(
 				std::string(" [Encountered when evaluating Factorial(").append(
-					to_string(N - R).append(std::string(")]")))),
-			std::make_tuple(N, R)));
+					ToString(N - R).append(std::string(")]")))),
+			std::vector<std::complex<double>>{N, R}));
 	}
 	return a.value() / b.value();
 }
@@ -898,30 +911,31 @@ static std::expected<std::complex<double>, MathError<
 
 #pragma endregion
 
+//a lot of stuff
 #pragma region Parsing
 
 #pragma region Operation Name Maps
 
 template<RealNumber T>
-const std::unordered_map<EOperation, std::function<std::expected<T, MathError<T, T>>(T, T)>>
+const std::unordered_map<EOperation, std::function<std::expected<T, MathError<T>>(T, T)>>
 OperationNameToBinaryOperationMap
 {
-	{EOperation::Add, std::function<std::expected<T, MathError<T, T>>(T, T)>(
-		static_cast<std::expected<T, MathError<T, T>>(*)(T, T)>(&Add<T>))},
-	{EOperation::Substract, std::function<std::expected<T, MathError<T, T>>(T, T)>(
-		static_cast<std::expected<T, MathError<T, T>>(*)(T, T)>(&Substract<T>))},
-	{EOperation::Multiply, std::function<std::expected<T, MathError<T, T>>(T, T)>(
-		static_cast<std::expected<T, MathError<T, T>>(*)(T, T)>(&Multiply<T>))},
-	{EOperation::Divide, std::function<std::expected<T, MathError<T, T>>(T, T)>(
-		static_cast<std::expected<T, MathError<T, T>>(*)(T, T)>(&Divide<T>))},
-	{EOperation::Power, std::function<std::expected<T, MathError<T, T>>(T, T)>(
-		static_cast<std::expected<T, MathError<T, T>>(*)(T, T)>(&Power<T>))},
-	{EOperation::Logarithm, std::function<std::expected<T, MathError<T, T>>(T, T)>(
-		static_cast<std::expected<T, MathError<T, T>>(*)(T, T)>(&Logarithm<T>))},
-	{EOperation::nCr, std::function<std::expected<T, MathError<T, T>>(T, T)>(
-		static_cast<std::expected<T, MathError<T, T>>(*)(T, T)>(&nCr<T>))},
-	{EOperation::nPr, std::function<std::expected<T, MathError<T, T>>(T, T)>(
-		static_cast<std::expected<T, MathError<T, T>>(*)(T, T)>(&nPr<T>))},
+	{EOperation::Add, std::function<std::expected<T, MathError<T>>(T, T)>(
+		static_cast<std::expected<T, MathError<T>>(*)(T, T)>(&Add<T>))},
+	{EOperation::Substract, std::function<std::expected<T, MathError<T>>(T, T)>(
+		static_cast<std::expected<T, MathError<T>>(*)(T, T)>(&Substract<T>))},
+	{EOperation::Multiply, std::function<std::expected<T, MathError<T>>(T, T)>(
+		static_cast<std::expected<T, MathError<T>>(*)(T, T)>(&Multiply<T>))},
+	{EOperation::Divide, std::function<std::expected<T, MathError<T>>(T, T)>(
+		static_cast<std::expected<T, MathError<T>>(*)(T, T)>(&Divide<T>))},
+	{EOperation::Power, std::function<std::expected<T, MathError<T>>(T, T)>(
+		static_cast<std::expected<T, MathError<T>>(*)(T, T)>(&Power<T>))},
+	{EOperation::Logarithm, std::function<std::expected<T, MathError<T>>(T, T)>(
+		static_cast<std::expected<T, MathError<T>>(*)(T, T)>(&Logarithm<T>))},
+	{EOperation::nCr, std::function<std::expected<T, MathError<T>>(T, T)>(
+		static_cast<std::expected<T, MathError<T>>(*)(T, T)>(&nCr<T>))},
+	{EOperation::nPr, std::function<std::expected<T, MathError<T>>(T, T)>(
+		static_cast<std::expected<T, MathError<T>>(*)(T, T)>(&nPr<T>))}
 };
 
 template<RealNumber T>
@@ -940,53 +954,51 @@ OperationNameToUnaryOperationMap
 		static_cast<std::expected<T, MathError<T>>(*)(T)>(&Retain<T>))}
 };
 
-using ComplexUnaryReturn = std::expected<std::complex<double>, MathError<std::complex<double>>>;
-using ComplexBinaryReturn = std::expected<std::complex<double>, MathError<std::complex<double>,
-	std::complex<double>>>;
+using ComplexReturn = std::expected<std::complex<double>, MathError<std::complex<double>>>;
 
-static const std::unordered_map<EOperation, std::function<ComplexBinaryReturn
+static const std::unordered_map<EOperation, std::function<ComplexReturn
 (std::complex<double>, std::complex<double>)>>
 OperationNameToComplexBinaryOperationMap
 {
-	{EOperation::Add, std::function<ComplexBinaryReturn
-		(std::complex<double>, std::complex<double>)>(static_cast<ComplexBinaryReturn
+	{EOperation::Add, std::function<ComplexReturn
+		(std::complex<double>, std::complex<double>)>(static_cast<ComplexReturn
 		(*)(std::complex<double>, std::complex<double>)>(&Add<std::complex<double>>))},
-	{EOperation::Substract, std::function<ComplexBinaryReturn
-		(std::complex<double>, std::complex<double>)>(static_cast<ComplexBinaryReturn
+	{EOperation::Substract, std::function<ComplexReturn
+		(std::complex<double>, std::complex<double>)>(static_cast<ComplexReturn
 		(*)(std::complex<double>, std::complex<double>)>(&Substract<std::complex<double>>))},
-	{EOperation::Multiply, std::function<ComplexBinaryReturn
-		(std::complex<double>, std::complex<double>)>(static_cast<ComplexBinaryReturn
+	{EOperation::Multiply, std::function<ComplexReturn
+		(std::complex<double>, std::complex<double>)>(static_cast<ComplexReturn
 		(*)(std::complex<double>, std::complex<double>)>(&Multiply<std::complex<double>>))},
-	{EOperation::Divide, std::function<ComplexBinaryReturn
-		(std::complex<double>, std::complex<double>)>(static_cast<ComplexBinaryReturn
+	{EOperation::Divide, std::function<ComplexReturn
+		(std::complex<double>, std::complex<double>)>(static_cast<ComplexReturn
 		(*)(std::complex<double>, std::complex<double>)>(&Divide<std::complex<double>>))},
-	{EOperation::Power, std::function<ComplexBinaryReturn
-		(std::complex<double>, std::complex<double>)>(static_cast<ComplexBinaryReturn
+	{EOperation::Power, std::function<ComplexReturn
+		(std::complex<double>, std::complex<double>)>(static_cast<ComplexReturn
 		(*)(std::complex<double>, std::complex<double>)>(&Power))},
-	{EOperation::Logarithm, std::function<ComplexBinaryReturn
-		(std::complex<double>, std::complex<double>)>(static_cast<ComplexBinaryReturn
+	{EOperation::Logarithm, std::function<ComplexReturn
+		(std::complex<double>, std::complex<double>)>(static_cast<ComplexReturn
 		(*)(std::complex<double>, std::complex<double>)>(&Logarithm))},
-	{EOperation::nCr, std::function<ComplexBinaryReturn
-		(std::complex<double>, std::complex<double>)>(static_cast<ComplexBinaryReturn
+	{EOperation::nCr, std::function<ComplexReturn
+		(std::complex<double>, std::complex<double>)>(static_cast<ComplexReturn
 		(*)(std::complex<double>, std::complex<double>)>(&nCr))},
-	{EOperation::nPr, std::function<ComplexBinaryReturn
-		(std::complex<double>, std::complex<double>)>(static_cast<ComplexBinaryReturn
-		(*)(std::complex<double>, std::complex<double>)>(&nPr))},
+	{EOperation::nPr, std::function<ComplexReturn
+		(std::complex<double>, std::complex<double>)>(static_cast<ComplexReturn
+		(*)(std::complex<double>, std::complex<double>)>(&nPr))}
 };
 
-static const std::unordered_map<EOperation, std::function<ComplexUnaryReturn(std::complex<double>)>>
+static const std::unordered_map<EOperation, std::function<ComplexReturn(std::complex<double>)>>
 	OperationNameToComplexUnaryOperationMap
 {
-	{EOperation::Exponential, std::function<ComplexUnaryReturn(std::complex<double>)>(
-		static_cast<ComplexUnaryReturn(*)(std::complex<double>)>(&Exponential<std::complex<double>>))},
-	{EOperation::Ln, std::function<ComplexUnaryReturn(std::complex<double>)>(
-		static_cast<ComplexUnaryReturn(*)(std::complex<double>)>(&Ln))},
-	{EOperation::Factorial, std::function<ComplexUnaryReturn(std::complex<double>)>(
-		static_cast<ComplexUnaryReturn(*)(std::complex<double>)>(&Factorial))},
-	{EOperation::Negate, std::function<ComplexUnaryReturn(std::complex<double>)>(
-		static_cast<ComplexUnaryReturn(*)(std::complex<double>)>(&Negate<std::complex<double>>))},
-	{EOperation::Retain, std::function<ComplexUnaryReturn(std::complex<double>)>(
-		static_cast<ComplexUnaryReturn(*)(std::complex<double>)>(&Retain<std::complex<double>>))}
+	{EOperation::Exponential, std::function<ComplexReturn(std::complex<double>)>(
+		static_cast<ComplexReturn(*)(std::complex<double>)>(&Exponential<std::complex<double>>))},
+	{EOperation::Ln, std::function<ComplexReturn(std::complex<double>)>(
+		static_cast<ComplexReturn(*)(std::complex<double>)>(&Ln))},
+	{EOperation::Factorial, std::function<ComplexReturn(std::complex<double>)>(
+		static_cast<ComplexReturn(*)(std::complex<double>)>(&Factorial))},
+	{EOperation::Negate, std::function<ComplexReturn(std::complex<double>)>(
+		static_cast<ComplexReturn(*)(std::complex<double>)>(&Negate<std::complex<double>>))},
+	{EOperation::Retain, std::function<ComplexReturn(std::complex<double>)>(
+		static_cast<ComplexReturn(*)(std::complex<double>)>(&Retain<std::complex<double>>))}
 };
 
 #pragma endregion
