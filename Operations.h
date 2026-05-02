@@ -4,6 +4,7 @@ Add functions:
 */
 #pragma region Includes
 #include <cmath>
+#include<numbers>
 #include <complex>
 #include <map>
 #include <set>
@@ -36,10 +37,8 @@ struct NumberType<T> {
 #pragma endregion
 
 #pragma region Constants
-constexpr static const double pi =
-3.1415926535897932384626433832795028841972;
-constexpr static const double e =
-2.7182818284590452353602874713526624977572;
+constexpr static const double pi = std::numbers::pi;
+constexpr static const double e = std::numbers::e;
 #pragma endregion
 
 #pragma region Parsing Helpers
@@ -614,8 +613,6 @@ static std::expected<std::complex<double>, MathError<std::complex<double>>> Ln(
 
 #pragma endregion
 
-//rewrite for no templates, change function map to constexpr function?, add checking for infinity
-//where relevant
 #pragma region Trig Functions
 
 double cot(double x) noexcept;
@@ -627,285 +624,77 @@ std::complex<double> coth(const std::complex<double>& x) noexcept;
 std::complex<double> acot(const std::complex<double>& x) noexcept;
 std::complex<double> acoth(const std::complex<double>& x) noexcept;
 
-template<typename Ret, typename Arg>
-	requires ((std::same_as<Ret, double> && std::same_as<Arg, double>) || 
-		(std::same_as<Ret, std::complex<double>> && std::same_as<Arg, const std::complex<double>&>))
-static const std::map<ETrigFunc, std::function<Ret(Arg)>> ETrigFuncToFunctionMap
-{
-	{ETrigFunc::sin, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&std::sin))},
-	{ETrigFunc::cos, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&std::cos))},
-	{ETrigFunc::tan, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&std::tan))},
-	{ETrigFunc::cot, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&cot)) },
-	{ETrigFunc::sinh, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&std::sinh))},
-	{ETrigFunc::cosh, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&std::cosh))},
-	{ETrigFunc::tanh, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&std::tanh))},
-	{ETrigFunc::coth, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&coth)) },
-	{ETrigFunc::asin, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&std::asin))},
-	{ETrigFunc::acos, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&std::acos))},
-	{ETrigFunc::atan, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&std::atan))},
-	{ETrigFunc::acot, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&acot)) },
-	{ETrigFunc::asinh, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&std::asinh))},
-	{ETrigFunc::acosh, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&std::acosh))},
-	{ETrigFunc::atanh, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&std::atanh))},
-	{ETrigFunc::acoth, std::function<Ret(Arg)>(static_cast<Ret(*)(Arg)>(&acoth)) }
-};
-
-
 std::expected<double, MathError<double>>
-TrigFunction(double A, ETrigFunc Function) noexcept;
+TrigFunction(double A, ETrigFunc Function);
 
-std::expected<std::complex<double>, MathError<const std::complex<double>&>>
-TrigFunction( const std::complex<double>& A, ETrigFunc Function) noexcept;
+std::expected<std::complex<double>, MathError<std::complex<double>>>
+TrigFunction( const std::complex<double>& A, ETrigFunc Function);
 #pragma endregion
 
-//rewrite for no templates + switch to const string &
 #pragma region Iterating Operations
 
-template<typename T, typename ExprType = typename T(typename std::tuple<const std::string, T>)>
-	requires Number<T>
-std::expected<T, MathError<T>> Sum(T BoundMin, T BoundMax,
-	const std::string IteratorVariableName, ExprType Expression) noexcept {
-	if (static_cast<uint64_t>(BoundMax) < static_cast<uint64_t>(BoundMin)) {
-		return T(0);
-	}
-	T Value(0);
-	for (uint64_t i = static_cast<uint64_t>(BoundMin); i <= static_cast<uint64_t>(BoundMax); i++) {
-		Value += Expression(std::make_tuple(IteratorVariableName, i));
-	}
-	return Value;
+std::expected<double, MathError<double>> Sum(uint64_t BoundMin, uint64_t BoundMax,
+	std::string IteratorVariableName,
+	double(*Expression)(std::pair<const std::string&, uint64_t>));
 
-};
+std::expected<std::complex<double>, MathError<std::complex<double>>> Sum(
+	uint64_t BoundMin, uint64_t BoundMax, std::string IteratorVariableName,
+	std::complex<double>(*Expression)(std::pair<const std::string&, uint64_t>));
 
-template<typename T, typename ExprType = typename T(typename std::tuple<const std::string, T>)>
-	requires Number<T>
-std::expected<T, MathError<T>> Sum(
-	std::vector<T> IteratedSet, 
-	const std::string IteratorVariableName, ExprType Expression) noexcept {
-	if (IteratedSet.size() == 0) {
-		return T(0);
-	}
-	T Value(0);
-	for (auto& i : IteratedSet) {
-		Value += Expression(std::make_tuple(IteratorVariableName, i));
-	}
-	return Value;
+std::expected<double, MathError<double>> Sum(
+	std::vector<double> IteratedSet, std::string IteratorVariableName,
+	double(*Expression)(std::pair<const std::string&, double>));
 
-};
+std::expected<std::complex<double>, MathError<std::complex<double>>> Sum(
+	std::vector<std::complex<double>> IteratedSet, std::string IteratorVariableName,
+	std::complex<double>(*Expression)(std::pair<const std::string&, std::complex<double>>));
 
-template<typename T, typename ExprType = typename T(typename std::tuple<const std::string, T>)>
-	requires Number<T>
-std::expected<T, MathError<T>> Product(T BoundMin, T BoundMax,
-	const std::string IteratorVariableName, ExprType Expression) noexcept {
-	if (static_cast<uint64_t>(BoundMax) < static_cast<uint64_t>(BoundMin)) {
-		return T(1);
-	}
-	T Value(1);
-	for (uint64_t i = static_cast<uint64_t>(BoundMin); i <= static_cast<uint64_t>(BoundMax); i++) {
-		Value *= Expression(std::make_tuple(IteratorVariableName, i));
-	}
-	return Value;
+std::expected<double, MathError<double>> Product(uint64_t BoundMin, uint64_t BoundMax,
+	std::string IteratorVariableName,
+	double(*Expression)(std::pair<const std::string&, uint64_t>));
 
-};
+std::expected<std::complex<double>, MathError<std::complex<double>>> Product(
+	uint64_t BoundMin, uint64_t BoundMax, std::string IteratorVariableName,
+	std::complex<double>(*Expression)(std::pair<const std::string&, uint64_t>));
 
-template<typename T, typename ExprType = typename T(typename std::tuple<const std::string, T>)>
-	requires Number<T>
-std::expected<T, MathError<T>> Product(
-	std::vector<T> IteratedSet,
-	const std::string IteratorVariableName, ExprType Expression) noexcept {
-	if (IteratedSet.size() == 0) {
-		return T(1);
-	}
-	T Value(1);
-	for (auto& i : IteratedSet) {
-		Value *= Expression(std::make_tuple(IteratorVariableName, i));
-	}
-	return Value;
+std::expected<double, MathError<double>> Product(
+	std::vector<double> IteratedSet, std::string IteratorVariableName,
+	double(*Expression)(std::pair<const std::string&, double>));
 
-};
+std::expected<std::complex<double>, MathError<std::complex<double>>> Product(
+	std::vector<std::complex<double>> IteratedSet, std::string IteratorVariableName,
+	std::complex<double>(*Expression)(std::pair<const std::string&, std::complex<double>>));
 
 #pragma endregion
 
-//inside
 #pragma region Factorial Related Operations
 
-//Make variables local to cpp or propably function?
-#pragma region Complex Gamma Implementation
+std::complex<double> tgamma(const std::complex<double>& z);
 
-constexpr static const int g = 7;
-
-constexpr static const double p[g + 2] = { 0.99999999999980993, 676.5203681218851,
--1259.1392167224028, 771.32342877765313, -176.61502916214059,
-12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6,
-1.5056327351493116e-7 };
-
-static std::complex<double> tgamma(const std::complex<double>& z) noexcept
-{
-	std::complex<double> z1 = z;
-	if (std::real(z1) < 0.5) {
-		return pi / (sin(pi * z1) * tgamma(1.0 - z1));
-	}
-	z1 -= 1.0;
-	std::complex<double> x = p[0];
-	for (int i = 1; i < g + 2; i++) {
-		x += p[i] / (z1 + std::complex<double>(i, 0));
-	}
-	const std::complex<double> t = z1 + (g + 0.5);
-	return std::sqrt(2 * pi) * std::pow(t, z1 + 0.5) * std::exp(-t) * x;
-}
-
-#pragma endregion
-
-//get rid of templates
 #pragma region Factorial
 
-template<RealNumber EvalTo, RealNumber T>
-std::expected<EvalTo, MathError<T>> Factorial(T A) noexcept {
-	if (A <= 0 && fmod(A, 1) == 0) {
-		return std::unexpected(MathError<T>(
-			EOperation::Factorial,
-			"The factorial does not exist for negative integers.",
-			std::vector<T>{A}));
-	}
-	return static_cast<EvalTo>(std::tgamma(A+1));
-};
-
+std::expected<double, MathError<double>> Factorial(double A);
 
 static std::expected<std::complex<double>, MathError<std::complex<double>>> Factorial(
-	std::complex<double> A) noexcept {
-	return tgamma(A+std::complex<double>(1.0, 0.0));
-};
+	std::complex<double> A);
 
 #pragma endregion
 
-//get rid of templates and unnecessary validity checks
 #pragma region nCr
 
-template<RealNumber EvalTo, RealNumber T>
-std::expected<EvalTo, MathError<T>> nCr(T N, T R) {
-	if (R < T(0) || R > N) {
-		return 0;
-	}
-	std::expected<T, MathError<T>> a = Factorial<T, T>(N),
-		b = Factorial<T, T>(N - R),
-		c = Factorial<T, T>(R);
-	[[unlikely]] if (!a.has_value()) {
-		return std::unexpected(MathError<T>(
-			EOperation::nCr,
-			a.error().GetErrorMessage().append(
-				std::string(" [Encountered when evaluating Factorial(").append(
-					std::to_string(N).append(std::string(")]")))),
-			std::vector<T>{N, R}));
-	}
-	[[unlikely]] if (!b.has_value()) {
-		return std::unexpected(MathError<T>(
-			EOperation::nCr,
-			b.error().GetErrorMessage().append(
-				std::string(" [Encountered when evaluating Factorial(").append(
-					std::to_string(N - R).append(std::string(")]")))),
-			std::vector<T>{N, R}));
-	}
-	[[unlikely]] if (!c.has_value()) {
-		return std::unexpected(MathError<T>(
-			EOperation::nCr,
-			c.error().GetErrorMessage().append(
-				std::string(" [Encountered when evaluating Factorial(").append(
-					std::to_string(R).append(std::string(")]")))),
-			std::vector<T>{N, R}));
-	}
-	return static_cast<EvalTo>(a.value() / (b.value() * c.value()));
-}
+std::expected<double, MathError<double>> nCr(double N, double R);
 
-
-
-static std::expected<std::complex<double>, MathError<
-	std::complex<double>>> nCr(std::complex<double> N, std::complex<double> R) {
-	std::expected<std::complex<double>, MathError<std::complex<double>>> 
-		a = Factorial(N),
-		b = Factorial(N - R),
-		c = Factorial(R);
-	if (!a.has_value()) {
-		return std::unexpected(MathError<std::complex<double>>(
-			EOperation::nCr,
-			a.error().GetErrorMessage().append(
-				std::string(" [Encountered when evaluating Factorial(").append(
-					ToString(N).append(std::string(")]")))),
-			std::vector<std::complex<double>>{N, R}));
-	}
-	if (!b.has_value()) {
-		return std::unexpected(MathError<std::complex<double>>(
-			EOperation::nCr,
-			b.error().GetErrorMessage().append(
-				std::string(" [Encountered when evaluating Factorial(").append(
-					ToString(N - R).append(std::string(")]")))),
-			std::vector<std::complex<double>>{N, R}));
-	}
-	if (!c.has_value()) {
-		return std::unexpected(MathError<std::complex<double>>(
-			EOperation::nCr,
-			c.error().GetErrorMessage().append(
-				std::string(" [Encountered when evaluating Factorial(").append(
-					ToString(R).append(std::string(")]")))),
-			std::vector<std::complex<double>>{N, R}));
-	}
-	return a.value() / (b.value() * c.value());
-}
+std::expected<std::complex<double>, MathError<
+	std::complex<double>>> nCr(std::complex<double> N, std::complex<double> R);
 
 #pragma endregion
 
-//get rid of templates and unnecessary validity checks
 #pragma region nPr
 
-template<RealNumber EvalTo, RealNumber T>
-std::expected<EvalTo, MathError<T>> nPr(T N, T R) {
-	if (R < T(0) || R > N) {
-		return 0;
-	}
-	std::expected<T, MathError<T>> a = Factorial<T, T>(N),
-		b = Factorial<T, T>(N - R);
-	[[unlikely]] if (!a.has_value()) {
-		return std::unexpected(MathError<T>(
-			EOperation::nPr,
-			a.error().GetErrorMessage().append(
-				std::string(" [Encountered when evaluating Factorial(").append(
-					std::to_string(N).append(std::string(")]")))),
-			std::vector<T>{N, R}));
-	}
-	[[unlikely]] if (!b.has_value()) {
-		return std::unexpected(MathError<T>(
-			EOperation::nPr,
-			b.error().GetErrorMessage().append(
-				std::string(" [Encountered when evaluating Factorial(").append(
-					std::to_string(N - R).append(std::string(")]")))),
-			std::vector<T>{N, R}));
-	}
-	return static_cast<EvalTo>(a.value() / b.value());
-}
+std::expected<double, MathError<double>> nPr(double N, double R);
 
-
-
-static std::expected<std::complex<double>, MathError<
-	std::complex<double>>> nPr(std::complex<double> N, std::complex<double> R) {
-	std::expected<std::complex<double>, MathError<std::complex<double>>>
-		a = Factorial(N),
-		b = Factorial(N - R);
-	if (!a.has_value()) {
-		return std::unexpected(MathError<std::complex<double>>(
-			EOperation::nPr,
-			a.error().GetErrorMessage().append(
-				std::string(" [Encountered when evaluating Factorial(").append(
-					ToString(N).append(std::string(")]")))),
-			std::vector<std::complex<double>>{N, R}));
-	}
-	if (!b.has_value()) {
-		return std::unexpected(MathError<std::complex<double>>(
-			EOperation::nPr,
-			b.error().GetErrorMessage().append(
-				std::string(" [Encountered when evaluating Factorial(").append(
-					ToString(N - R).append(std::string(")]")))),
-			std::vector<std::complex<double>>{N, R}));
-	}
-	return a.value() / b.value();
-}
+std::expected<std::complex<double>, MathError<
+	std::complex<double>>> nPr(std::complex<double> N, std::complex<double> R);
 
 #pragma endregion
 

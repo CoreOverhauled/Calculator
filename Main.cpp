@@ -16,7 +16,7 @@ int main() {
 		}
 		break;
 	}*/
-	std::cout << TrigFunction(0, ETrigFunc::cot).error();
+	std::cout << Sum(uint64_t(1), uint64_t(5), std::string("a"), [](std::pair<const std::string&, uint64_t> iter) -> double { return static_cast<double>(iter.second); }).value();
 	constexpr double X = 2.448618111050801;
 	std::string Input;
 	std::getline(std::cin, Input);
