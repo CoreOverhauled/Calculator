@@ -16,13 +16,13 @@ int main() {
 		}
 		break;
 	}*/
-	std::cout << Sum(uint64_t(1), uint64_t(5), std::string("a"), [](std::pair<const std::string&, uint64_t> iter) -> double { return static_cast<double>(iter.second); }).value();
+	//std::cout << Sum(uint64_t(1), uint64_t(5), std::string("a"), [](std::pair<const std::string&, uint64_t> iter) -> double { return static_cast<double>(iter.second); }).value();
 	constexpr double X = 2.448618111050801;
 	std::string Input;
 	std::getline(std::cin, Input);
 	//using T = std::complex<double>;
 	using T = double;
-	std::expected<std::vector<Token<T>>, bool> ExpectedTokens = Tokenize<double>(Input);
+	std::expected<std::vector<Token<T>>, bool> ExpectedTokens = Tokenize(Input);
 	if (ExpectedTokens.has_value()) {
 		std::vector<Token<T>> Tokens = ExpectedTokens.value();
 		for (auto& Tok : Tokens) {
