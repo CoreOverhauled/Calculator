@@ -1,10 +1,8 @@
 #pragma once
-/*
-Add functions:
-*/
+
 #pragma region Includes
 #include <cmath>
-#include<numbers>
+#include <numbers>
 #include <complex>
 #include <map>
 #include <set>
@@ -15,6 +13,21 @@ Add functions:
 #include <iostream>
 #include <vector>
 #include <stack>
+#pragma endregion
+
+#pragma region Debug
+
+//#define ISDEBUGMODE
+constexpr inline bool IsDebugMode() {
+#ifdef ISDEBUGMODE
+	return true;
+#else
+	return false;
+#endif
+}
+
+#define LOG_FUNC if constexpr (IsDebugMode()) { std::cout << __func__ << " called\n"; }
+
 #pragma endregion
 
 #pragma region Concepts
@@ -42,7 +55,7 @@ constexpr static const double e = std::numbers::e;
 #pragma endregion
 
 #pragma region Parsing Helpers
-//syntax be like:[a:12+5^0.5]sum{d:0,50a}(prod{f:d;d+1;15;(3pi)!}(atanh(f)))
+//syntax be like:[a:12+5^0.5]sum{d:0,50a}(prod{f:d;d+1;15;(3pi)!}(tanh(f)))
 #pragma region Operation Names
 enum class EOperation : uint8_t {
 	None = 0,
@@ -143,7 +156,6 @@ static const std::unordered_map<EOperation, std::string> OperationNames
 	{EOperation::Negate, std::string("Negate")},
 	{EOperation::Retain, std::string("Plus")}
 };
-
 
 static const std::unordered_map<std::string, EOperation> InputOperationNames
 {
@@ -286,7 +298,6 @@ static const std::unordered_map<ETokenType, std::string> TokenTypeNames
 
 #pragma region Tokens
 
-
 static const std::unordered_map<EOperation, uint8_t> OperatorPrecedence{
 	{EOperation::None, 0},
 	{EOperation::Add, 1},
@@ -377,7 +388,6 @@ static const std::unordered_map<EOperation, EOperationType> OperatorType{
 	{EOperation::Retain, EOperationType::Unary}
 };
 
-
 template<Number T>
 struct Token {
 
@@ -385,7 +395,6 @@ struct Token {
 	Token(ETokenType InType) noexcept : bIsNumber(false), Type(InType) {};
 	Token(ETrigFunc InFunction) noexcept : bIsNumber(false), Type(ETokenType::Trig), Function(InFunction) {};
 	Token(std::string InName) noexcept : bIsNumber(false), Type(ETokenType::Name), Name(InName) {};
-
 
 public:
 
@@ -444,8 +453,6 @@ constexpr bool IsSeparatorType(Token<T> Tok) {
 }
 
 template<Number T>
-static std::unordered_map<std::string, T> Variables{};
-template<Number T>
 static std::unordered_map<std::string, Token<T>> Functions{};//for later
 
 #pragma endregion
@@ -462,7 +469,7 @@ class MathError {
 public:
 	MathError(EOperation InFunction, std::string InErrorMessage, std::vector<FuncArgType> InPassedArguments)
 		: Function(InFunction), ErrorMessage("Error in operation: " + OperationNames.at(Function)
-			+ ": " + InErrorMessage + " (Operands were:" + ToString(InPassedArguments) + ')') {
+			+ ": " + InErrorMessage + " (Operands were:" + ToString(InPassedArguments) + ')' + '\n') {
 	}
 
 	friend std::ostream& operator<<(std::ostream& Out, const MathError& Error) {
@@ -479,117 +486,10 @@ private:
 
 #pragma endregion
 
-//Move this whole region inside eval
-#pragma region Basic Operations
-template<Number T>
-std::expected<T, MathError<T>> Add(T A, T B) noexcept {
-	return A + B;
-};
+#pragma region Variables
 
-
-template<Number T>
-std::expected<T, MathError<T>> Substract(T A, T B) noexcept {
-	return A - B;
-};
-
-template<Number T>
-std::expected<T, MathError<T>> Multiply(T A, T B) noexcept {
-	return A * B;
-};
-
-template<Number T>
-std::expected<T, MathError<T>> Divide(T A, T B) noexcept {
-	if (B == T(0)) {
-		return std::unexpected(MathError(
-			EOperation::Divide,
-			"Division by zero is not allowed",
-			std::vector<T>{A, B}));
-	}
-	return A / B;
-};
-
-template<Number T>
-std::expected<T, MathError<T>> Retain(T A) noexcept {
-	return A;
-};
-
-template<Number T>
-std::expected<T, MathError<T>> Negate(T A) noexcept {
-	return -A;
-};
-
-#pragma endregion
-
-//Same as above
-#pragma region Power Related Operations
-
-#pragma region Exponents
-template<RealNumber T>
-std::expected<T, MathError<T>> Power(T Base, T Exp) noexcept {
-	if (Base < 0 && std::fmod(Exp, 1) != 0) {
-		return std::unexpected(MathError(
-			EOperation::Power,
-			"Raising negative numbers to non-whole exponents is only supported for complex numbers",
-			std::vector<T>{Base, Exp}));
-	}
-	return std::pow(Base, Exp);
-};
-
-static std::expected<std::complex<double>, MathError<std::complex<double>>>
-Power(std::complex<double> Base, std::complex<double> Exp) noexcept {
-	return std::pow(Base, Exp);
-};
-
-template<Number T>
-std::expected<T, MathError<T>> Exponential(T Exp) noexcept {
-	return std::exp(Exp);
-};
-
-#pragma endregion
-
-#pragma region Logarithms
-
-template<RealNumber T>
-std::expected<T, MathError<T>> Logarithm(T Base, T Num) noexcept {
-	if (Base <= 0) {
-		return std::unexpected(MathError(
-			EOperation::Logarithm,
-			"The base of a logarithm must be positive",
-			std::vector<T>{Base, Num}));
-	}
-	if (Num <= 0) {
-		return std::unexpected(MathError(
-			EOperation::Logarithm,
-			"You can only take the logarithm of positive numbers",
-			std::vector<T>{Base, Num}));
-	}
-	return std::log(Num) / std::log(Base);
-};
-
-static std::expected<std::complex<double>, MathError<std::complex<double>>>
-Logarithm(std::complex<double> Base,
-		std::complex<double> Num) noexcept {
-	return std::log(Num) / std::log(Base);
-};
-
-template<RealNumber T>
-std::expected<T, MathError<T>> Ln(T Num) noexcept {
-	if (Num <= 0) {
-		return std::unexpected(MathError(
-			EOperation::Ln,
-			"You can only take the logarithm of positive numbers",
-			std::vector<T>{Num}));
-	}
-	return std::log(Num);
-};
-
-static std::expected<std::complex<double>, MathError<std::complex<double>>> Ln(
-	std::complex<double> Num) noexcept {
-	return std::log(Num);
-};
-
-
-#pragma endregion
+static std::unordered_map<std::string, double> Variables{};
+static std::unordered_map<std::string, std::complex<double>> ComplexVariables;
 
 #pragma endregion
 
@@ -613,37 +513,45 @@ TrigFunction( const std::complex<double>& A, ETrigFunc Function);
 
 #pragma region Iterating Operations
 
-std::expected<double, MathError<double>> Sum(uint64_t BoundMin, uint64_t BoundMax,
+std::expected<double, MathError<double>> Sum(int64_t BoundMin, int64_t BoundMax,
 	std::string IteratorVariableName,
-	double(*Expression)(std::pair<const std::string&, uint64_t>));
+	double(*Expression)(std::pair<const std::string&, int64_t>, std::deque<Token<double>>),
+	std::deque<Token<double>> Body);
 
 std::expected<std::complex<double>, MathError<std::complex<double>>> Sum(
-	uint64_t BoundMin, uint64_t BoundMax, std::string IteratorVariableName,
-	std::complex<double>(*Expression)(std::pair<const std::string&, uint64_t>));
+	int64_t BoundMin, int64_t BoundMax, std::string IteratorVariableName,
+	std::complex<double>(*Expression)(std::pair<const std::string&, int64_t>,
+		std::deque<Token<std::complex<double>>>), std::deque<Token<std::complex<double>>> Body);
 
 std::expected<double, MathError<double>> Sum(
 	std::vector<double> IteratedSet, std::string IteratorVariableName,
-	double(*Expression)(std::pair<const std::string&, double>));
+	double(*Expression)(std::pair<const std::string&, double>, std::deque<Token<double>>),
+	std::deque<Token<double>> Body);
 
 std::expected<std::complex<double>, MathError<std::complex<double>>> Sum(
 	std::vector<std::complex<double>> IteratedSet, std::string IteratorVariableName,
-	std::complex<double>(*Expression)(std::pair<const std::string&, std::complex<double>>));
+	std::complex<double>(*Expression)(std::pair<const std::string&, std::complex<double>>,
+		std::deque<Token<std::complex<double>>>), std::deque<Token<std::complex<double>>> Body);
 
-std::expected<double, MathError<double>> Product(uint64_t BoundMin, uint64_t BoundMax,
+std::expected<double, MathError<double>> Product(int64_t BoundMin, int64_t BoundMax,
 	std::string IteratorVariableName,
-	double(*Expression)(std::pair<const std::string&, uint64_t>));
+	double(*Expression)(std::pair<const std::string&, int64_t>, std::deque<Token<double>>),
+	std::deque<Token<double>> Body);
 
 std::expected<std::complex<double>, MathError<std::complex<double>>> Product(
-	uint64_t BoundMin, uint64_t BoundMax, std::string IteratorVariableName,
-	std::complex<double>(*Expression)(std::pair<const std::string&, uint64_t>));
+	int64_t BoundMin, int64_t BoundMax, std::string IteratorVariableName,
+	std::complex<double>(*Expression)(std::pair<const std::string&, int64_t>,
+		std::deque<Token<std::complex<double>>>), std::deque<Token<std::complex<double>>> Body);
 
 std::expected<double, MathError<double>> Product(
 	std::vector<double> IteratedSet, std::string IteratorVariableName,
-	double(*Expression)(std::pair<const std::string&, double>));
+	double(*Expression)(std::pair<const std::string&, double>, std::deque<Token<double>>),
+	std::deque<Token<double>> Body);
 
 std::expected<std::complex<double>, MathError<std::complex<double>>> Product(
 	std::vector<std::complex<double>> IteratedSet, std::string IteratorVariableName,
-	std::complex<double>(*Expression)(std::pair<const std::string&, std::complex<double>>));
+	std::complex<double>(*Expression)(std::pair<const std::string&, std::complex<double>>,
+		std::deque<Token<std::complex<double>>>), std::deque<Token<std::complex<double>>> Body);
 
 #pragma endregion
 
@@ -680,7 +588,6 @@ std::expected<std::complex<double>, MathError<
 
 #pragma endregion
 
-//a lot of stuff
 #pragma region Parsing
 
 #pragma region Tokenizer
@@ -706,7 +613,8 @@ std::expected<std::deque<Token<std::complex<double>>>, bool> Parse(
 
 enum class EStopConsumingCondition : uint8_t {
 	CorrectParenthesis,
-	IteratorBodyEnd
+	IteratorBodyEnd,
+	Separator
 };
 
 static const std::unordered_map<ETokenType, ETokenType> CorrespondingToken{
@@ -726,62 +634,36 @@ std::expected<std::deque<Token<std::complex<double>>>, bool> ConsumeUntilCorrect
 
 
 std::expected<std::deque<Token<double>>, bool> ConsumeIteratorBody(
-	std::deque<Token<double>>& InputTokens, ETokenType StopTokenType);
+	std::deque<Token<double>>& InputTokens);
 
 std::expected<std::deque<Token<std::complex<double>>>, bool> ConsumeIteratorBody(
-	std::deque<Token<std::complex<double>>>& InputTokens, ETokenType StopTokenType);
+	std::deque<Token<std::complex<double>>>& InputTokens);
+
+
+std::expected<std::deque<Token<double>>, bool> ConsumeUntilSeparator(
+	std::deque<Token<double>>& InputTokens);
+
+std::expected<std::deque<Token<std::complex<double>>>, bool> ConsumeUntilSeparator(
+	std::deque<Token<std::complex<double>>>& InputTokens);
 
 
 std::expected<std::deque<Token<double>>, bool> ConsumeUntilToken(
-	std::deque<Token<double>>& InputTokens,
-	ETokenType StopTokenType, EStopConsumingCondition Behavior);
+	std::deque<Token<double>>& InputTokens, EStopConsumingCondition Behavior,
+	ETokenType StopTokenType = ETokenType::EndToken);
 
 std::expected<std::deque<Token<std::complex<double>>>, bool> ConsumeUntilToken(
-	std::deque<Token<std::complex<double>>>& InputTokens,
-	ETokenType StopTokenType, EStopConsumingCondition Behavior);
+	std::deque<Token<std::complex<double>>>& InputTokens, EStopConsumingCondition Behavior,
+	ETokenType StopTokenType = ETokenType::EndToken);
 
 #pragma endregion
 
-template<Number T>
-std::expected<T, bool> Eval(std::deque<Token<T>> Tokens) {
-	std::vector<Token<T>> CurrentTokens{};
-	bool bIsRangeIterator = false;
-	bool bShouldReturnResult = true;
-	Token<T> CurrentToken{T(0)};
-	while (!Tokens.empty()) {
-		CurrentToken = Tokens.front();
-		Tokens.pop_front();
-		switch (CurrentToken.Type) {
-		case ETokenType::Comma:
-			bIsRangeIterator = true;
-			CurrentTokens.push_back(CurrentToken);
-			break;
-		case ETokenType::Semicolon:
-			bIsRangeIterator = false;
-			CurrentTokens.push_back(CurrentToken);
-			break;
-		case ETokenType::Name:
-			if (Variables<T>.contains(CurrentToken.Name)) {
-				CurrentTokens.push_back(Token<T>(Variables<T>.at(CurrentToken.Name)));
-				break;
-			}
-			CurrentTokens.push_back(CurrentToken);
-			break;
-		case ETokenType::Number:
-			CurrentTokens.push_back(CurrentToken);
-			break;
-		case ETokenType::pi:
-			CurrentTokens.push_back(Token<T>(static_cast<T>(pi)));
-			break;
-		case ETokenType::e:
-			CurrentTokens.push_back(Token<T>(static_cast<T>(e)));
-			break;
-		case ETokenType::OpenCurlyBrace:
-			//unfinished
-			break;
-		}
-	}
-};
+#pragma region Eval
+
+std::expected<double, bool> Eval(std::deque<Token<double>> Tokens);
+
+std::expected<std::complex<double>, bool> Eval(std::deque<Token<std::complex<double>>> Tokens);
+
+#pragma endregion
 
 #pragma endregion
 

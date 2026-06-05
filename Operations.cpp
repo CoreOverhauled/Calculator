@@ -154,8 +154,10 @@ TrigFunction(double A, ETrigFunc Function) {
 		"No such function: " + TrigToFunctionNames.at(Function), std::vector<double>{A}));
 }
 
-inline bool IsNormal(const std::complex<double>& x) {
-	return isnormal(x.real()) && isnormal(x.imag());
+static inline bool IsNormal(const std::complex<double>& x) {
+	return isnormal(x.real()) && isnormal(x.imag()) ||
+		(isnormal(x.real()) && x.imag() == 0.0) ||
+		(x.real() == 0.0 && isnormal(x.imag()));
 }
 
 std::expected<std::complex<double>, MathError<std::complex<double>>>
@@ -258,28 +260,31 @@ TrigFunction(const std::complex<double>& A, ETrigFunc Function) {
 #pragma region Iterator Implementations
 
 #pragma region Range-based Sum
-std::expected<double, MathError<double>> Sum(uint64_t BoundMin, uint64_t BoundMax,
+std::expected<double, MathError<double>> Sum(int64_t BoundMin, int64_t BoundMax,
 	std::string IteratorVariableName,
-	double(*Expression)(std::pair<const std::string&, uint64_t>)) {
-	if (static_cast<uint64_t>(BoundMax) < static_cast<uint64_t>(BoundMin)) {
+	double(*Expression)(std::pair<const std::string&, int64_t>, std::deque<Token<double>>),
+	std::deque<Token<double>> Body) {
+	LOG_FUNC
+	if (BoundMax < BoundMin) {
 		return 0.0;
 	}
 	double Value{ 0.0 };
-	for (uint64_t i = static_cast<uint64_t>(BoundMin); i <= static_cast<uint64_t>(BoundMax); i++) {
-		Value += Expression(std::make_pair(IteratorVariableName, i));
+	for (int64_t i = BoundMin; i <= BoundMax; i++) {
+		Value += Expression(std::make_pair(IteratorVariableName, i), Body);
 	}
 	return Value;
 }
 
 std::expected<std::complex<double>, MathError<std::complex<double>>> Sum(
-	uint64_t BoundMin, uint64_t BoundMax, std::string IteratorVariableName,
-	std::complex<double>(*Expression)(std::pair<const std::string&, uint64_t>)) {
-	if (static_cast<uint64_t>(BoundMax) < static_cast<uint64_t>(BoundMin)) {
+	int64_t BoundMin, int64_t BoundMax, std::string IteratorVariableName,
+	std::complex<double>(*Expression)(std::pair<const std::string&, int64_t>,
+		std::deque<Token<std::complex<double>>>), std::deque<Token<std::complex<double>>> Body) {
+	if (BoundMax < BoundMin) {
 		return std::complex<double>(0.0, 0.0);
 	}
 	std::complex<double> Value{ 0.0, 0.0 };
-	for (uint64_t i = static_cast<uint64_t>(BoundMin); i <= static_cast<uint64_t>(BoundMax); i++) {
-		Value += Expression(std::make_pair(IteratorVariableName, i));
+	for (int64_t i = BoundMin; i <= BoundMax; i++) {
+		Value += Expression(std::make_pair(IteratorVariableName, i), Body);
 	}
 	return Value;
 }
@@ -289,26 +294,28 @@ std::expected<std::complex<double>, MathError<std::complex<double>>> Sum(
 
 std::expected<double, MathError<double>> Sum(
 	std::vector<double> IteratedSet, std::string IteratorVariableName, 
-	double(*Expression)(std::pair<const std::string&, double>)) {
+	double(*Expression)(std::pair<const std::string&, double>, std::deque<Token<double>>),
+	std::deque<Token<double>> Body) {
 	if (IteratedSet.size() == 0) {
 		return 0.0;
 	}
 	double Value{ 0.0 };
 	for (auto& i : IteratedSet) {
-		Value += Expression(std::make_pair(IteratorVariableName, i));
+		Value += Expression(std::make_pair(IteratorVariableName, i), Body);
 	}
 	return Value;
 }
 
 std::expected<std::complex<double>, MathError<std::complex<double>>> Sum(
 	std::vector<std::complex<double>> IteratedSet, std::string IteratorVariableName,
-	std::complex<double>(*Expression)(std::pair<const std::string&, std::complex<double>>)) {
+	std::complex<double>(*Expression)(std::pair<const std::string&, std::complex<double>>,
+		std::deque<Token<std::complex<double>>>), std::deque<Token<std::complex<double>>> Body) {
 	if (IteratedSet.size() == 0) {
 		return std::complex<double>(0.0, 0.0);
 	}
 	std::complex<double> Value{ 0.0, 0.0 };
 	for (auto& i : IteratedSet) {
-		Value += Expression(std::make_pair(IteratorVariableName, i));
+		Value += Expression(std::make_pair(IteratorVariableName, i), Body);
 	}
 	return Value;
 }
@@ -316,28 +323,30 @@ std::expected<std::complex<double>, MathError<std::complex<double>>> Sum(
 #pragma endregion
 
 #pragma region Range-based Product
-std::expected<double, MathError<double>> Product(uint64_t BoundMin, uint64_t BoundMax,
+std::expected<double, MathError<double>> Product(int64_t BoundMin, int64_t BoundMax,
 	std::string IteratorVariableName,
-	double(*Expression)(std::pair<const std::string&, uint64_t>)) {
-	if (static_cast<uint64_t>(BoundMax) < static_cast<uint64_t>(BoundMin)) {
+	double(*Expression)(std::pair<const std::string&, int64_t>, std::deque<Token<double>>),
+	std::deque<Token<double>> Body) {
+	if (BoundMax < BoundMin) {
 		return 1.0;
 	}
 	double Value{ 1.0 };
-	for (uint64_t i = static_cast<uint64_t>(BoundMin); i <= static_cast<uint64_t>(BoundMax); i++) {
-		Value *= Expression(std::make_pair(IteratorVariableName, i));
+	for (int64_t i = BoundMin; i <= BoundMax; i++) {
+		Value *= Expression(std::make_pair(IteratorVariableName, i), Body);
 	}
 	return Value;
 }
 
 std::expected<std::complex<double>, MathError<std::complex<double>>> Product(
-	uint64_t BoundMin, uint64_t BoundMax, std::string IteratorVariableName,
-	std::complex<double>(*Expression)(std::pair<const std::string&, uint64_t>)) {
-	if (static_cast<uint64_t>(BoundMax) < static_cast<uint64_t>(BoundMin)) {
+	int64_t BoundMin, int64_t BoundMax, std::string IteratorVariableName,
+	std::complex<double>(*Expression)(std::pair<const std::string&, int64_t>,
+		std::deque<Token<std::complex<double>>>), std::deque<Token<std::complex<double>>> Body) {
+	if (BoundMax < BoundMin) {
 		return std::complex<double>(1.0, 0.0);
 	}
 	std::complex<double> Value{ 1.0, 0.0 };
-	for (uint64_t i = static_cast<uint64_t>(BoundMin); i <= static_cast<uint64_t>(BoundMax); i++) {
-		Value *= Expression(std::make_pair(IteratorVariableName, i));
+	for (int64_t i = BoundMin; i <= BoundMax; i++) {
+		Value *= Expression(std::make_pair(IteratorVariableName, i),Body);
 	}
 	return Value;
 }
@@ -347,26 +356,28 @@ std::expected<std::complex<double>, MathError<std::complex<double>>> Product(
 
 std::expected<double, MathError<double>> Product(
 	std::vector<double> IteratedSet, std::string IteratorVariableName,
-	double(*Expression)(std::pair<const std::string&, double>)) {
+	double(*Expression)(std::pair<const std::string&, double>, std::deque<Token<double>>),
+	std::deque<Token<double>> Body) {
 	if (IteratedSet.size() == 0) {
 		return 1.0;
 	}
 	double Value{ 1.0 };
 	for (auto& i : IteratedSet) {
-		Value *= Expression(std::make_pair(IteratorVariableName, i));
+		Value *= Expression(std::make_pair(IteratorVariableName, i), Body);
 	}
 	return Value;
 }
 
 std::expected<std::complex<double>, MathError<std::complex<double>>> Product(
 	std::vector<std::complex<double>> IteratedSet, std::string IteratorVariableName,
-	std::complex<double>(*Expression)(std::pair<const std::string&, std::complex<double>>)) {
+	std::complex<double>(*Expression)(std::pair<const std::string&, std::complex<double>>,
+		std::deque<Token<std::complex<double>>>), std::deque<Token<std::complex<double>>> Body) {
 	if (IteratedSet.size() == 0) {
 		return std::complex<double>(1.0, 0.0);
 	}
 	std::complex<double> Value{ 1.0, 0.0 };
 	for (auto& i : IteratedSet) {
-		Value *= Expression(std::make_pair(IteratorVariableName, i));
+		Value *= Expression(std::make_pair(IteratorVariableName, i), Body);
 	}
 	return Value;
 }
@@ -997,10 +1008,21 @@ std::expected<std::vector<Token<std::complex<double>>>, bool> TokenizeComplex(
 #pragma region Parser
 
 std::expected<std::deque<Token<double>>, bool> Parse(const std::vector<Token<double>>& Tokens) {
+	LOG_FUNC
 	bool bShouldReturnParsedTokens = true;
 	std::deque<Token<double>> ParsedTokenStack{};
 	std::stack<Token<double>> OperatorStack{};
 	for (auto& Tok : Tokens) {
+#ifdef ISDEBUGMODE
+		for (const auto& Tok : Tokens) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << "| ";
+		for (const auto& Tok : ParsedTokenStack) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << '\n';
+#endif
 		if (IsNumericType<double>(Tok)) {
 			ParsedTokenStack.push_back(Tok);
 			continue;
@@ -1082,7 +1104,24 @@ std::expected<std::deque<Token<double>>, bool> Parse(const std::vector<Token<dou
 				ParsedTokenStack.push_back(Tok);
 				continue;
 			}
-			if (Tok.Type == ETokenType::Comma || Tok.Type == ETokenType::Semicolon) {
+			if (Tok.Type == ETokenType::Comma) {
+				while (!OperatorStack.empty() &&
+					OperatorStack.top().Type != ETokenType::OpenCurlyBrace &&
+					OperatorStack.top().Type != ETokenType::OpenParenthesis) {
+					ParsedTokenStack.push_back(OperatorStack.top());
+					OperatorStack.pop();
+				}
+				if (OperatorStack.empty()) {
+					if (OperatorStack.empty()) {
+						bShouldReturnParsedTokens = false;
+						std::cout << "Syntax error: expected '{'.\n";
+						continue;
+					}
+				}
+				ParsedTokenStack.push_back(Tok);
+				continue;
+			}
+			if (Tok.Type == ETokenType::Semicolon) {
 				while (!OperatorStack.empty() &&
 					OperatorStack.top().Type != ETokenType::OpenCurlyBrace) {
 					ParsedTokenStack.push_back(OperatorStack.top());
@@ -1113,6 +1152,16 @@ std::expected<std::deque<Token<double>>, bool> Parse(const std::vector<Token<dou
 		std::cout << "Error: unsupported token. Please contact the dev with the input you used.";
 		bShouldReturnParsedTokens = false;
 	}
+#ifdef ISDEBUGMODE
+	for (const auto& Tok : Tokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << "| ";
+	for (const auto& Tok : ParsedTokenStack) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << '\n';
+#endif
 	if (!bShouldReturnParsedTokens) {
 		return std::unexpected(false);
 	}
@@ -1121,10 +1170,21 @@ std::expected<std::deque<Token<double>>, bool> Parse(const std::vector<Token<dou
 
 std::expected<std::deque<Token<std::complex<double>>>, bool> Parse(
 	const std::vector<Token<std::complex<double>>>& Tokens) {
+	LOG_FUNC
 	bool bShouldReturnParsedTokens = true;
 	std::deque<Token<std::complex<double>>> ParsedTokenStack{};
 	std::stack<Token<std::complex<double>>> OperatorStack{};
 	for (auto& Tok : Tokens) {
+#ifdef ISDEBUGMODE
+		for (const auto& Tok : Tokens) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << "| ";
+		for (const auto& Tok : ParsedTokenStack) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << '\n'; 
+#endif
 		if (IsNumericType<std::complex<double>>(Tok)) {
 			ParsedTokenStack.push_back(Tok);
 			continue;
@@ -1206,7 +1266,24 @@ std::expected<std::deque<Token<std::complex<double>>>, bool> Parse(
 				ParsedTokenStack.push_back(Tok);
 				continue;
 			}
-			if (Tok.Type == ETokenType::Comma || Tok.Type == ETokenType::Semicolon) {
+			if (Tok.Type == ETokenType::Comma) {
+				while (!OperatorStack.empty() &&
+					OperatorStack.top().Type != ETokenType::OpenCurlyBrace &&
+					OperatorStack.top().Type != ETokenType::OpenParenthesis) {
+					ParsedTokenStack.push_back(OperatorStack.top());
+					OperatorStack.pop();
+				}
+				if (OperatorStack.empty()) {
+					if (OperatorStack.empty()) {
+						bShouldReturnParsedTokens = false;
+						std::cout << "Syntax error: expected '{'.\n";
+						continue;
+					}
+				}
+				ParsedTokenStack.push_back(Tok);
+				continue;
+			}
+			if (Tok.Type == ETokenType::Semicolon) {
 				while (!OperatorStack.empty() &&
 					OperatorStack.top().Type != ETokenType::OpenCurlyBrace) {
 					ParsedTokenStack.push_back(OperatorStack.top());
@@ -1237,6 +1314,16 @@ std::expected<std::deque<Token<std::complex<double>>>, bool> Parse(
 		std::cout << "Error: unsupported token. Please contact the dev with the input you used.";
 		bShouldReturnParsedTokens = false;
 	}
+#ifdef ISDEBUGMODE
+	for (const auto& Tok : Tokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << "| ";
+	for (const auto& Tok : ParsedTokenStack) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << '\n';
+#endif
 	if (!bShouldReturnParsedTokens) {
 		return std::unexpected(false);
 	}
@@ -1251,8 +1338,19 @@ std::expected<std::deque<Token<std::complex<double>>>, bool> Parse(
 
 std::expected<std::deque<Token<double>>, bool> ConsumeUntilCorrectParenthesis(
 	std::deque<Token<double>>& InputTokens, ETokenType StopTokenType) {
+	LOG_FUNC
 	std::deque<Token<double>> ConsumedTokens{};
 	std::stack<ETokenType> ParenthesesStack{};
+#ifdef ISDEBUGMODE
+	for (const auto& Tok : InputTokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << "| ";
+	for (const auto& Tok : ConsumedTokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << '\n';
+#endif
 	while (!InputTokens.empty() && InputTokens.front().Type != StopTokenType) {
 		if (InputTokens.front().Type == ETokenType::OpenParenthesis) {
 			ParenthesesStack.push(ETokenType::OpenParenthesis);
@@ -1294,25 +1392,58 @@ std::expected<std::deque<Token<double>>, bool> ConsumeUntilCorrectParenthesis(
 		}
 		ConsumedTokens.push_back(InputTokens.front());
 		InputTokens.pop_front();
+#ifdef ISDEBUGMODE
+		for (const auto& Tok : InputTokens) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << "| ";
+		for (const auto& Tok : ConsumedTokens) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << '\n';
+#endif
 		if (!InputTokens.empty() && InputTokens.front().Type == StopTokenType
 			&& ParenthesesStack.size() > 1) {
 			std::cout << "Syntax error: " << TokenTypeNames.at(CorrespondingToken.at(
 				ParenthesesStack.top())) << " was never closed.\n";
 			return std::unexpected(false);
 		}
+
 	}
 	if (InputTokens.empty()) {
 		std::cout << "Syntax error: " << TokenTypeNames.at(CorrespondingToken.at(StopTokenType))
 			<< " was never closed.\n";
 		return std::unexpected(false);
 	}
+	InputTokens.pop_front();
+#ifdef ISDEBUGMODE
+	for (const auto& Tok : InputTokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << "| ";
+	for (const auto& Tok : ConsumedTokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << '\n';
+#endif
 	return ConsumedTokens;
 }
 
 std::expected<std::deque<Token<std::complex<double>>>, bool> ConsumeUntilCorrectParenthesis(
 	std::deque<Token<std::complex<double>>>& InputTokens, ETokenType StopTokenType) {
+	LOG_FUNC
 	std::deque<Token<std::complex<double>>> ConsumedTokens{};
 	std::stack<ETokenType> ParenthesesStack{};
+#ifdef ISDEBUGMODE
+	for (const auto& Tok : InputTokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << "| ";
+	for (const auto& Tok : ConsumedTokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << '\n';
+#endif
 	while (!InputTokens.empty() && InputTokens.front().Type != StopTokenType) {
 		if (InputTokens.front().Type == ETokenType::OpenParenthesis) {
 			ParenthesesStack.push(ETokenType::OpenParenthesis);
@@ -1354,36 +1485,78 @@ std::expected<std::deque<Token<std::complex<double>>>, bool> ConsumeUntilCorrect
 		}
 		ConsumedTokens.push_back(InputTokens.front());
 		InputTokens.pop_front();
+#ifdef ISDEBUGMODE
+		for (const auto& Tok : InputTokens) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << "| ";
+		for (const auto& Tok : ConsumedTokens) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << '\n';
+#endif
 		if (!InputTokens.empty() && InputTokens.front().Type == StopTokenType
 			&& ParenthesesStack.size() > 1) {
 			std::cout << "Syntax error: " << TokenTypeNames.at(CorrespondingToken.at(
 				ParenthesesStack.top())) << " was never closed.\n";
 			return std::unexpected(false);
 		}
+
 	}
 	if (InputTokens.empty()) {
 		std::cout << "Syntax error: " << TokenTypeNames.at(CorrespondingToken.at(StopTokenType))
 			<< " was never closed.\n";
 		return std::unexpected(false);
 	}
+	InputTokens.pop_front();
+#ifdef ISDEBUGMODE
+	for (const auto& Tok : InputTokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << "| ";
+	for (const auto& Tok : ConsumedTokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << '\n';
+#endif
 	return ConsumedTokens;
 }
 
 
 std::expected<std::deque<Token<double>>, bool> ConsumeIteratorBody(
-	std::deque<Token<double>>& InputTokens, ETokenType StopTokenType) {
+	std::deque<Token<double>>& InputTokens) {
+	LOG_FUNC
 	uint8_t NestedIteratorCount = 1;
 	std::deque<Token<double>> ConsumedTokens{};
+#ifdef ISDEBUGMODE
+	for (const auto& Tok : InputTokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << "| ";
+	for (const auto& Tok : ConsumedTokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << '\n';
+#endif
 	while (NestedIteratorCount > 0 && !InputTokens.empty()) {
-		if (InputTokens.front().Type == ETokenType::ClosedCurlyBrace) {
+		if (InputTokens.front().Type == ETokenType::OpenCurlyBrace) {
 			NestedIteratorCount++;
 		}
-		else if (InputTokens.front().Type == ETokenType::Sum ||
-			InputTokens.front().Type == ETokenType::Product) {
+		else if (IsOneOf(InputTokens.front(), { ETokenType::Sum, ETokenType::Product })) {
 			NestedIteratorCount--;
 		}
 		ConsumedTokens.push_back(InputTokens.front());
 		InputTokens.pop_front();
+#ifdef ISDEBUGMODE
+		for (const auto& Tok : InputTokens) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << "| ";
+		for (const auto& Tok : ConsumedTokens) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << '\n';
+#endif
 	}
 	if (NestedIteratorCount > 0) {
 		std::cout << "Syntax error: an iterator was never finished.";
@@ -1393,19 +1566,39 @@ std::expected<std::deque<Token<double>>, bool> ConsumeIteratorBody(
 }
 
 std::expected<std::deque<Token<std::complex<double>>>, bool> ConsumeIteratorBody(
-	std::deque<Token<std::complex<double>>>& InputTokens, ETokenType StopTokenType) {
+	std::deque<Token<std::complex<double>>>& InputTokens) {
+	LOG_FUNC
 	uint8_t NestedIteratorCount = 1;
 	std::deque<Token<std::complex<double>>> ConsumedTokens{};
+#ifdef ISDEBUGMODE
+	for (const auto& Tok : InputTokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << "| ";
+	for (const auto& Tok : ConsumedTokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << '\n';
+#endif
 	while (NestedIteratorCount > 0 && !InputTokens.empty()) {
-		if (InputTokens.front().Type == ETokenType::ClosedCurlyBrace) {
+		if (InputTokens.front().Type == ETokenType::OpenCurlyBrace) {
 			NestedIteratorCount++;
 		}
-		else if (InputTokens.front().Type == ETokenType::Sum ||
-			InputTokens.front().Type == ETokenType::Product) {
+		else if (IsOneOf(InputTokens.front(), { ETokenType::Sum, ETokenType::Product })) {
 			NestedIteratorCount--;
 		}
 		ConsumedTokens.push_back(InputTokens.front());
 		InputTokens.pop_front();
+#ifdef ISDEBUGMODE
+		for (const auto& Tok : InputTokens) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << "| ";
+		for (const auto& Tok : ConsumedTokens) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << '\n';
+#endif
 	}
 	if (NestedIteratorCount > 0) {
 		std::cout << "Syntax error: an iterator was never finished.";
@@ -1415,9 +1608,113 @@ std::expected<std::deque<Token<std::complex<double>>>, bool> ConsumeIteratorBody
 }
 
 
+std::expected<std::deque<Token<double>>, bool> ConsumeUntilSeparator(
+	std::deque<Token<double>>& InputTokens) {
+	LOG_FUNC
+	uint8_t NestedIteratorCount = 1;
+	std::deque<Token<double>> ConsumedTokens{};
+#ifdef ISDEBUGMODE
+	for (const auto& Tok : InputTokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << "| ";
+	for (const auto& Tok : ConsumedTokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << '\n';
+#endif
+	while (NestedIteratorCount > 0 && !InputTokens.empty()) {
+		if (InputTokens.front().Type == ETokenType::ClosedCurlyBrace) {
+			NestedIteratorCount++;
+		}
+		else if (IsOneOf(InputTokens.front(), { ETokenType::Sum, ETokenType::Product })) {
+			NestedIteratorCount--;
+		}
+		else if (IsOneOf(InputTokens.front(), { ETokenType::Comma, ETokenType::Semicolon,
+			ETokenType::ClosedCurlyBrace }) && NestedIteratorCount == 1) {
+			InputTokens.pop_front();
+			break;
+		}
+		ConsumedTokens.push_back(InputTokens.front());
+		InputTokens.pop_front();
+#ifdef ISDEBUGMODE
+		for (const auto& Tok : InputTokens) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << "| ";
+		for (const auto& Tok : ConsumedTokens) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << '\n';
+#endif
+	}
+	if (NestedIteratorCount > 1) {
+		std::cout << "Syntax error: an iterator was never finished.";
+		return std::unexpected(false);
+	}
+	if (NestedIteratorCount == 0) {
+		std::cout << "Syntax error: an iterator was never opened.";
+		return std::unexpected(false);
+	}
+	return ConsumedTokens;
+}
+
+std::expected<std::deque<Token<std::complex<double>>>, bool> ConsumeUntilSeparator(
+	std::deque<Token<std::complex<double>>>& InputTokens) {
+	LOG_FUNC
+	uint8_t NestedIteratorCount = 1;
+	std::deque<Token<std::complex<double>>> ConsumedTokens{};
+#ifdef ISDEBUGMODE
+	for (const auto& Tok : InputTokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << "| ";
+	for (const auto& Tok : ConsumedTokens) {
+		std::cout << Tok << ' ';
+	}
+	std::cout << '\n';
+#endif
+	while (NestedIteratorCount > 0 && !InputTokens.empty()) {
+		if (InputTokens.front().Type == ETokenType::ClosedCurlyBrace) {
+			NestedIteratorCount++;
+		}
+		else if (IsOneOf(InputTokens.front(), { ETokenType::Sum, ETokenType::Product })) {
+			NestedIteratorCount--;
+		}
+		else if (IsOneOf(InputTokens.front(), { ETokenType::Comma, ETokenType::Semicolon,
+			ETokenType::ClosedCurlyBrace }) && NestedIteratorCount == 1) {
+			InputTokens.pop_front();
+			break;
+		}
+		ConsumedTokens.push_back(InputTokens.front());
+		InputTokens.pop_front();
+#ifdef ISDEBUGMODE
+		for (const auto& Tok : InputTokens) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << "| ";
+		for (const auto& Tok : ConsumedTokens) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << '\n';
+#endif
+	}
+	if (NestedIteratorCount > 1) {
+		std::cout << "Syntax error: an iterator was never finished.";
+		return std::unexpected(false);
+	}
+	if (NestedIteratorCount == 0) {
+		std::cout << "Syntax error: an iterator was never opened.";
+		return std::unexpected(false);
+	}
+	return ConsumedTokens;
+}
+
+
 std::expected<std::deque<Token<double>>, bool> ConsumeUntilToken(
-	std::deque<Token<double>>& InputTokens,
-	ETokenType StopTokenType, EStopConsumingCondition Behavior) {
+	std::deque<Token<double>>& InputTokens, EStopConsumingCondition Behavior,
+	ETokenType StopTokenType) {
+	LOG_FUNC
 	std::expected<std::deque<Token<double>>, bool> Consumed{};
 	switch (Behavior) {
 	case EStopConsumingCondition::CorrectParenthesis:
@@ -1430,7 +1727,16 @@ std::expected<std::deque<Token<double>>, bool> ConsumeUntilToken(
 		}
 		break;
 	case EStopConsumingCondition::IteratorBodyEnd:
-		Consumed = ConsumeIteratorBody(InputTokens, StopTokenType);
+		Consumed = ConsumeIteratorBody(InputTokens);
+		if (Consumed.has_value()) {
+			return Consumed.value();
+		}
+		else {
+			return std::unexpected(false);
+		}
+		break;
+	case EStopConsumingCondition::Separator:
+		Consumed = ConsumeUntilSeparator(InputTokens);
 		if (Consumed.has_value()) {
 			return Consumed.value();
 		}
@@ -1443,8 +1749,9 @@ std::expected<std::deque<Token<double>>, bool> ConsumeUntilToken(
 }
 
 std::expected<std::deque<Token<std::complex<double>>>, bool> ConsumeUntilToken(
-	std::deque<Token<std::complex<double>>>& InputTokens,
-	ETokenType StopTokenType, EStopConsumingCondition Behavior) {
+	std::deque<Token<std::complex<double>>>& InputTokens, EStopConsumingCondition Behavior,
+	ETokenType StopTokenType) {
+	LOG_FUNC
 	std::expected<std::deque<Token<std::complex<double>>>, bool> Consumed{};
 	switch (Behavior) {
 	case EStopConsumingCondition::CorrectParenthesis:
@@ -1457,7 +1764,16 @@ std::expected<std::deque<Token<std::complex<double>>>, bool> ConsumeUntilToken(
 		}
 		break;
 	case EStopConsumingCondition::IteratorBodyEnd:
-		Consumed = ConsumeIteratorBody(InputTokens, StopTokenType);
+		Consumed = ConsumeIteratorBody(InputTokens);
+		if (Consumed.has_value()) {
+			return Consumed.value();
+		}
+		else {
+			return std::unexpected(false);
+		}
+		break;
+	case EStopConsumingCondition::Separator:
+		Consumed = ConsumeUntilSeparator(InputTokens);
 		if (Consumed.has_value()) {
 			return Consumed.value();
 		}
@@ -1467,6 +1783,1087 @@ std::expected<std::deque<Token<std::complex<double>>>, bool> ConsumeUntilToken(
 		break;
 	}
 	return std::unexpected(false);
+}
+
+#pragma endregion
+
+#pragma region Eval
+
+#pragma region Iterator wrappers
+
+static double RangeBasedIteratorEvalWrapper(std::pair<const std::string&, int64_t> Variable,
+	std::deque<Token<double>> Body) {
+	Variables.insert_or_assign(Variable.first, static_cast<double>(Variable.second));
+	std::expected<double, bool> Temp = Eval(Body);
+	Variables.erase(Variable.first);
+	return Temp.value_or(NAN);
+}
+
+static std::complex<double> RangeBasedIteratorEvalWrapper(
+	std::pair<const std::string&, int64_t> Variable,
+	std::deque<Token<std::complex<double>>> Body) {
+	ComplexVariables.insert_or_assign(Variable.first, std::complex<double>(
+		static_cast<double>(Variable.second), 0.0));
+	std::expected<std::complex<double>, bool> Temp = Eval(Body);
+	ComplexVariables.erase(Variable.first);
+	return Temp.value_or(NAN);
+}
+
+static double SetBasedIteratorEvalWrapper(std::pair<const std::string&, double> Variable,
+	std::deque<Token<double>> Body) {
+	Variables.insert_or_assign(Variable.first, Variable.second);
+	std::expected<double, bool> Temp = Eval(Body);
+	Variables.erase(Variable.first);
+	return Temp.value_or(NAN);
+}
+
+static std::complex<double> SetBasedIteratorEvalWrapper(
+	std::pair<const std::string&, std::complex<double>> Variable,
+	std::deque<Token<std::complex<double>>> Body) {
+	ComplexVariables.insert_or_assign(Variable.first, Variable.second);
+	std::expected<std::complex<double>, bool> Temp = Eval(Body);
+	ComplexVariables.erase(Variable.first);
+	return Temp.value_or(NAN);
+}
+
+#pragma endregion
+
+std::expected<double, bool> Eval(std::deque<Token<double>> Tokens) {
+	LOG_FUNC
+#ifdef ISDEBUGMODE
+	for (const auto& Tok : Tokens) {
+		std::cout << Tok << " ";
+	}
+	std::cout << '\n';
+#endif
+	std::deque<double> CurrentNumbers{};
+	bool bShouldReturnResult = true;
+	Token<double> CurrentToken{ 0.0 };
+#pragma region Lambdas
+	auto GetOne = [&CurrentNumbers, &CurrentToken, &bShouldReturnResult]()->double {
+		if (CurrentNumbers.empty()) {
+			std::cout << "Insufficient arguments for operation: '"
+				+ TokenTypeNames.at(CurrentToken.Type) + "'\n";
+			bShouldReturnResult = false;
+			return 0.0;
+		}
+		double Temp = CurrentNumbers.back();
+		CurrentNumbers.pop_back();
+		return Temp;
+		};
+	auto GetTwo = [&CurrentNumbers, &CurrentToken, &bShouldReturnResult]()->std::pair<double, double> {
+		if (CurrentNumbers.size() < 2) {
+			std::cout << "Insufficient arguments for operation: '"
+				+ TokenTypeNames.at(CurrentToken.Type) + "'\n";
+			bShouldReturnResult = false;
+			return std::pair<double, double>{0.0, 0.0};
+		}
+		std::pair<double, double> Temp{};
+		Temp.second = CurrentNumbers.back();
+		CurrentNumbers.pop_back();
+		Temp.first = CurrentNumbers.back();
+		CurrentNumbers.pop_back();
+		return Temp;
+		};
+#pragma endregion
+	while (!Tokens.empty()) {
+		CurrentToken = Tokens.front();
+		Tokens.pop_front();
+		switch (CurrentToken.Type) {
+		case ETokenType::Name:
+			if (Variables.contains(CurrentToken.Name)) {
+				CurrentNumbers.push_back(Variables.at(CurrentToken.Name));
+				break;
+			}
+			else {
+				std::cout << "Error: unknown identifier: '" + CurrentToken.Name + "'\n";
+				bShouldReturnResult = false;
+				break;
+			}
+		case ETokenType::Number:
+			CurrentNumbers.push_back(CurrentToken.Value);
+			break;
+		case ETokenType::pi:
+			CurrentNumbers.push_back(pi);
+			break;
+		case ETokenType::e:
+			CurrentNumbers.push_back(e);
+			break;
+		case ETokenType::OpenCurlyBrace:
+		{
+			std::expected<std::deque<Token<double>>, bool> ExpectedBody = 
+				ConsumeUntilToken(Tokens, EStopConsumingCondition::IteratorBodyEnd);
+			bool bIsRangeIterator = false;
+			if(!ExpectedBody.has_value()){
+				bShouldReturnResult = false;
+				break;
+			}
+			std::deque<Token<double>> Body = ExpectedBody.value();
+			uint8_t NestedIteratorCount = 1;
+			for (const auto& Tok : Body) {
+				if (Tok.Type == ETokenType::ClosedCurlyBrace) {
+					NestedIteratorCount++;
+				}
+				else if (IsOneOf(Tok, { ETokenType::Sum, ETokenType::Product })) {
+					NestedIteratorCount--;
+				}
+				else if (Tok.Type == ETokenType::Comma && NestedIteratorCount == 1) {
+					bIsRangeIterator = true;
+				}
+				else if (Tok.Type == ETokenType::Semicolon && NestedIteratorCount == 1) {
+					bIsRangeIterator = false;
+				}
+			}
+			if (Body.back().Type == ETokenType::Sum) {
+				Body.pop_back();
+				if (bIsRangeIterator) {
+					int64_t BoundMin = 0;
+					int64_t BoundMax = 0;
+					std::expected<std::deque<Token<double>>, bool> ExpectedVariableValues = 
+						ConsumeUntilToken(Body, EStopConsumingCondition::CorrectParenthesis,
+						ETokenType::ClosedCurlyBrace);
+					if (!ExpectedVariableValues.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					std::deque<Token<double>> VariableValues = ExpectedVariableValues.value();
+					if (VariableValues.front().Type != ETokenType::Name) {
+						std::cout << "Syntax error: '{' should be followed by a name\n";
+						bShouldReturnResult = false;
+						break;
+					}
+					std::string VariableName = VariableValues.front().Name;
+					VariableValues.pop_front();
+					if (VariableValues.front().Type != ETokenType::Colon) {
+						std::cout << "Syntax error: a name should be followed by ':'\n";
+						bShouldReturnResult = false;
+						break;
+					}
+					VariableValues.pop_front();
+
+					std::expected<std::deque<Token<double>>, bool> VariableValue = ConsumeUntilToken(VariableValues, EStopConsumingCondition::Separator);
+					if (!VariableValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					std::expected<double, bool> ExpectedValue = Eval(VariableValue.value());
+					if (!ExpectedValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					BoundMin = static_cast<int64_t>(ExpectedValue.value());
+
+					VariableValue = ConsumeUntilToken(VariableValues, EStopConsumingCondition::Separator);
+					if (!VariableValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					ExpectedValue = Eval(VariableValue.value());
+					if (!ExpectedValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					BoundMax = static_cast<int64_t>(ExpectedValue.value());
+					std::expected<double, MathError<double>> ExpectedSumValue = Sum(BoundMin, BoundMax, VariableName, &RangeBasedIteratorEvalWrapper, Body);
+					if (!ExpectedSumValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					CurrentNumbers.push_back(ExpectedSumValue.value());
+				}
+				else {
+					std::expected<std::deque<Token<double>>, bool> ExpectedVariableValues =
+						ConsumeUntilToken(Body, EStopConsumingCondition::CorrectParenthesis,
+							ETokenType::ClosedCurlyBrace);
+					if (!ExpectedVariableValues.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					std::deque<Token<double>> VariableValues = ExpectedVariableValues.value();
+					if (VariableValues.front().Type != ETokenType::Name) {
+						std::cout << "Syntax error: '{' should be followed by a name\n";
+						bShouldReturnResult = false;
+						break;
+					}
+					std::string VariableName = VariableValues.front().Name;
+					VariableValues.pop_front();
+					if (VariableValues.front().Type != ETokenType::Colon) {
+						std::cout << "Syntax error: a name should be followed by ':'\n";
+						bShouldReturnResult = false;
+						break;
+					}
+					VariableValues.pop_front();
+
+					std::vector<double> IteratedSet{};
+					while (!VariableValues.empty()) {
+						std::expected<std::deque<Token<double>>, bool> VariableValue = ConsumeUntilToken(VariableValues, EStopConsumingCondition::Separator);
+						if (!VariableValue.has_value()) {
+							bShouldReturnResult = false;
+							break;
+						}
+						std::expected<double, bool> ExpectedValue = Eval(VariableValue.value());
+						if (!ExpectedValue.has_value()) {
+							bShouldReturnResult = false;
+							break;
+						}
+						IteratedSet.push_back(ExpectedValue.value());
+					}
+					std::expected<double, MathError<double>> ExpectedSumValue = Sum(IteratedSet, VariableName, &SetBasedIteratorEvalWrapper, Body);
+					if (!ExpectedSumValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					CurrentNumbers.push_back(ExpectedSumValue.value());
+				}
+			}
+			else if (Body.back().Type == ETokenType::Product) {
+				Body.pop_back();
+				if (bIsRangeIterator) {
+					int64_t BoundMin = 0;
+					int64_t BoundMax = 0;
+					std::expected<std::deque<Token<double>>, bool> ExpectedVariableValues =
+						ConsumeUntilToken(Body, EStopConsumingCondition::CorrectParenthesis,
+							ETokenType::ClosedCurlyBrace);
+					if (!ExpectedVariableValues.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					std::deque<Token<double>> VariableValues = ExpectedVariableValues.value();
+					if (VariableValues.front().Type != ETokenType::Name) {
+						std::cout << "Syntax error: '{' should be followed by a name\n";
+						bShouldReturnResult = false;
+						break;
+					}
+					std::string VariableName = VariableValues.front().Name;
+					VariableValues.pop_front();
+					if (VariableValues.front().Type != ETokenType::Colon) {
+						std::cout << "Syntax error: a name should be followed by ':'\n";
+						bShouldReturnResult = false;
+						break;
+					}
+					VariableValues.pop_front();
+
+					std::expected<std::deque<Token<double>>, bool> VariableValue = ConsumeUntilToken(VariableValues, EStopConsumingCondition::Separator);
+					if (!VariableValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					std::expected<double, bool> ExpectedValue = Eval(VariableValue.value());
+					if (!ExpectedValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					BoundMin = static_cast<int64_t>(ExpectedValue.value());
+
+					VariableValue = ConsumeUntilToken(VariableValues, EStopConsumingCondition::Separator);
+					if (!VariableValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					ExpectedValue = Eval(VariableValue.value());
+					if (!ExpectedValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					BoundMax = static_cast<int64_t>(ExpectedValue.value());
+					std::expected<double, MathError<double>> ExpectedSumValue = Product(BoundMin, BoundMax, VariableName, &RangeBasedIteratorEvalWrapper, Body);
+					if (!ExpectedSumValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					CurrentNumbers.push_back(ExpectedSumValue.value());
+				}
+				else {
+					std::expected<std::deque<Token<double>>, bool> ExpectedVariableValues =
+						ConsumeUntilToken(Body, EStopConsumingCondition::CorrectParenthesis,
+							ETokenType::ClosedCurlyBrace);
+					if (!ExpectedVariableValues.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					std::deque<Token<double>> VariableValues = ExpectedVariableValues.value();
+					if (VariableValues.front().Type != ETokenType::Name) {
+						std::cout << "Syntax error: '{' should be followed by a name\n";
+						bShouldReturnResult = false;
+						break;
+					}
+					std::string VariableName = VariableValues.front().Name;
+					VariableValues.pop_front();
+					if (VariableValues.front().Type != ETokenType::Colon) {
+						std::cout << "Syntax error: a name should be followed by ':'\n";
+						bShouldReturnResult = false;
+						break;
+					}
+					VariableValues.pop_front();
+
+					std::vector<double> IteratedSet{};
+					while (!VariableValues.empty()) {
+						std::expected<std::deque<Token<double>>, bool> VariableValue = ConsumeUntilToken(VariableValues, EStopConsumingCondition::Separator);
+						if (!VariableValue.has_value()) {
+							bShouldReturnResult = false;
+							break;
+						}
+						std::expected<double, bool> ExpectedValue = Eval(VariableValue.value());
+						if (!ExpectedValue.has_value()) {
+							bShouldReturnResult = false;
+							break;
+						}
+						IteratedSet.push_back(ExpectedValue.value());
+					}
+					std::expected<double, MathError<double>> ExpectedSumValue = Product(IteratedSet, VariableName, &SetBasedIteratorEvalWrapper, Body);
+					if (!ExpectedSumValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					CurrentNumbers.push_back(ExpectedSumValue.value());
+				}
+			}
+			else {
+				std::cout << "Error: Iterator was never finished\n";
+				bShouldReturnResult = false;
+				break;
+			}
+		}
+			break;
+		case ETokenType::OpenBracket:
+		{
+			std::expected<std::deque<Token<double>>, bool> ExpectedBody =
+				ConsumeUntilCorrectParenthesis(Tokens, ETokenType::ClosedBracket);
+			if (!ExpectedBody.has_value()) {
+				break;
+			}
+			std::deque<Token<double>> Body = ExpectedBody.value();
+			if (Body.front().Type != ETokenType::Name) {
+				std::cout << "Error: A unique name is expected after a '['.\n";
+				break;
+			}
+			std::string VariableName = Body.front().Name;
+			Body.pop_front();
+			if (Body.front().Type != ETokenType::Colon) {
+				std::cout << "Error: Expected ':' after variable name.\n";
+				break;
+			}
+			Body.pop_front();
+			std::expected<double, bool> VariableValue = Eval(Body);
+			if (!VariableValue.has_value()) {
+				break;
+			}
+			Variables.insert(std::pair(VariableName, VariableValue.value()));
+		}
+			break;
+		case ETokenType::Comma:
+			//Ignore it
+			break;
+		case ETokenType::Add:
+		{
+			auto [a, b] = GetTwo();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			CurrentNumbers.push_back(a + b);
+			break;
+		}
+		case ETokenType::Retain:
+			break;
+		case ETokenType::Substract:
+		{
+			auto [a, b] = GetTwo();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			CurrentNumbers.push_back(a - b);
+			break;
+		}
+		case ETokenType::Negate:
+		{
+			double a = GetOne();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			CurrentNumbers.push_back(-a);
+			break;
+		}
+		case ETokenType::Multiply:
+		{
+			auto [a, b] = GetTwo();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			CurrentNumbers.push_back(a * b);
+			break;
+		}
+		case ETokenType::Divide:
+		{
+			auto [a, b] = GetTwo();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			if (b == 0.0) {
+				std::cout << MathError(
+					EOperation::Divide,
+					"Division by zero is not allowed",
+					std::vector<double>{a, b});
+				bShouldReturnResult = false;
+				break;
+			}
+			CurrentNumbers.push_back(a / b);
+			break;
+		}
+		case ETokenType::Power:
+		{
+			auto [a, b] = GetTwo();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			if (a < 0 && std::fmod(b, 1) != 0) {
+				std::cout << MathError(
+					EOperation::Power,
+					"Raising negative numbers to non-whole exponents is only supported for complex numbers",
+					std::vector<double>{a, b});
+				bShouldReturnResult = false;
+				break;
+			}
+			CurrentNumbers.push_back(std::pow(a, b));
+			break;
+		}
+		case ETokenType::Exponential:
+		{
+			double a = GetOne();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			CurrentNumbers.push_back(std::exp(a));
+			break;
+		}
+		case ETokenType::Logarithm:
+		{
+			auto [a, b] = GetTwo();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			if (a <= 0) {
+				std::cout << MathError(
+					EOperation::Logarithm,
+					"The base of a logarithm must be positive",
+					std::vector<double>{a, b});
+				bShouldReturnResult = false;
+				break;
+			}
+			if (b <= 0) {
+				std::cout << MathError(
+					EOperation::Logarithm,
+					"You can only take the logarithm of positive numbers",
+					std::vector<double>{a, b});
+				bShouldReturnResult = false;
+				break;
+			}
+			CurrentNumbers.push_back(std::log(b) / std::log(a));
+			break;
+		}
+		case ETokenType::Ln:
+		{
+			double a = GetOne();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			if (a <= 0) {
+				std::cout << MathError(
+					EOperation::Logarithm,
+					"You can only take the logarithm of positive numbers",
+					std::vector<double>{a});
+				bShouldReturnResult = false;
+				break;
+			}
+			CurrentNumbers.push_back(std::log(a));
+			break;
+		}
+		case ETokenType::Trig:
+		{
+			double a = GetOne();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			std::expected<double, MathError<double>> Temp = TrigFunction(a, CurrentToken.Function);
+			if (!Temp.has_value()) {
+				std::cout << Temp.error();
+				bShouldReturnResult = false;
+				break;
+			}
+			CurrentNumbers.push_back(Temp.value());
+			break;
+		}
+		case ETokenType::Factorial:
+		{
+			double a = GetOne();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			std::expected<double, MathError<double>> Temp = Factorial(a);
+			if (!Temp.has_value()) {
+				std::cout << Temp.error();
+				bShouldReturnResult = false;
+				break;
+			}
+			CurrentNumbers.push_back(Temp.value());
+			break;
+		}
+		case ETokenType::nCr:
+		{
+			auto [a, b] = GetTwo();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			std::expected<double, MathError<double>> Temp = nCr(a, b);
+			if (!Temp.has_value()) {
+				std::cout << Temp.error();
+				bShouldReturnResult = false;
+				break;
+			}
+			CurrentNumbers.push_back(Temp.value());
+			break;
+		}
+		case ETokenType::nPr:
+		{
+			auto [a, b] = GetTwo();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			std::expected<double, MathError<double>> Temp = nPr(a, b);
+			if (!Temp.has_value()) {
+				std::cout << Temp.error();
+				bShouldReturnResult = false;
+				break;
+			}
+			CurrentNumbers.push_back(Temp.value());
+			break;
+		}
+		default:
+			std::cout << "Error: unexpected token: '" + TokenTypeNames.at(CurrentToken.Type) + "'\n";
+			bShouldReturnResult = false;
+			break;
+		}
+#ifdef ISDEBUGMODE
+		for (const auto& Tok : Tokens) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << "| ";
+		for (double Num : CurrentNumbers) {
+			std::cout << Num << ' ';
+		}
+		std::cout << '\n';
+#endif
+		if (!bShouldReturnResult) {
+			break;
+		}
+	}
+	if (!bShouldReturnResult) {
+		return std::unexpected(false);
+	}
+	return CurrentNumbers.front();
+}
+
+std::expected<std::complex<double>, bool> Eval(std::deque<Token<std::complex<double>>> Tokens) {
+	LOG_FUNC
+#ifdef ISDEBUGMODE
+		for (const auto& Tok : Tokens) {
+			std::cout << Tok << " ";
+		}
+	std::cout << '\n';
+#endif
+	std::deque<std::complex<double>> CurrentNumbers{};
+	bool bShouldReturnResult = true;
+	Token<std::complex<double>> CurrentToken{ 0.0 };
+#pragma region Lambdas
+	auto GetOne = [&CurrentNumbers, &CurrentToken, &bShouldReturnResult]()->std::complex<double> {
+		if (CurrentNumbers.empty()) {
+			std::cout << "Insufficient arguments for operation: '"
+				+ TokenTypeNames.at(CurrentToken.Type) + "'\n";
+			bShouldReturnResult = false;
+			return 0.0;
+		}
+		std::complex<double> Temp = CurrentNumbers.back();
+		CurrentNumbers.pop_back();
+		return Temp;
+		};
+	auto GetTwo = [&CurrentNumbers, &CurrentToken, &bShouldReturnResult]()
+		->std::pair<std::complex<double>, std::complex<double>> {
+		if (CurrentNumbers.size() < 2) {
+			std::cout << "Insufficient arguments for operation: '"
+				+ TokenTypeNames.at(CurrentToken.Type) + "'\n";
+			bShouldReturnResult = false;
+			return std::pair<std::complex<double>, std::complex<double>>{0.0, 0.0};
+		}
+		std::pair<std::complex<double>, std::complex<double>> Temp{};
+		Temp.second = CurrentNumbers.back();
+		CurrentNumbers.pop_back();
+		Temp.first = CurrentNumbers.back();
+		CurrentNumbers.pop_back();
+		return Temp;
+		};
+#pragma endregion
+	while (!Tokens.empty()) {
+		CurrentToken = Tokens.front();
+		Tokens.pop_front();
+		switch (CurrentToken.Type) {
+		case ETokenType::Name:
+			if (ComplexVariables.contains(CurrentToken.Name)) {
+				CurrentNumbers.push_back(ComplexVariables.at(CurrentToken.Name));
+				break;
+			}
+			else {
+				std::cout << "Error: unknown identifier: '" + CurrentToken.Name + "'\n";
+				bShouldReturnResult = false;
+				break;
+			}
+		case ETokenType::Number:
+			CurrentNumbers.push_back(CurrentToken.Value);
+			break;
+		case ETokenType::pi:
+			CurrentNumbers.push_back(pi);
+			break;
+		case ETokenType::e:
+			CurrentNumbers.push_back(e);
+			break;
+		case ETokenType::OpenCurlyBrace:
+		{
+			std::expected<std::deque<Token<std::complex<double>>>, bool> ExpectedBody =
+				ConsumeUntilToken(Tokens, EStopConsumingCondition::IteratorBodyEnd);
+			bool bIsRangeIterator = false;
+			if (!ExpectedBody.has_value()) {
+				bShouldReturnResult = false;
+				break;
+			}
+			std::deque<Token<std::complex<double>>> Body = ExpectedBody.value();
+			uint8_t NestedIteratorCount = 1;
+			for (const auto& Tok : Body) {
+				if (Tok.Type == ETokenType::ClosedCurlyBrace) {
+					NestedIteratorCount++;
+				}
+				else if (IsOneOf(Tok, { ETokenType::Sum, ETokenType::Product })) {
+					NestedIteratorCount--;
+				}
+				else if (Tok.Type == ETokenType::Comma && NestedIteratorCount == 1) {
+					bIsRangeIterator = true;
+				}
+				else if (Tok.Type == ETokenType::Semicolon && NestedIteratorCount == 1) {
+					bIsRangeIterator = false;
+				}
+			}
+			if (Body.back().Type == ETokenType::Sum) {
+				Body.pop_back();
+				if (bIsRangeIterator) {
+					int64_t BoundMin = 0;
+					int64_t BoundMax = 0;
+					std::expected<std::deque<Token<std::complex<double>>>, bool> ExpectedVariableValues =
+						ConsumeUntilToken(Body, EStopConsumingCondition::CorrectParenthesis,
+							ETokenType::ClosedCurlyBrace);
+					if (!ExpectedVariableValues.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					std::deque<Token<std::complex<double>>> VariableValues = ExpectedVariableValues.value();
+					if (VariableValues.front().Type != ETokenType::Name) {
+						std::cout << "Syntax error: '{' should be followed by a name\n";
+						bShouldReturnResult = false;
+						break;
+					}
+					std::string VariableName = VariableValues.front().Name;
+					VariableValues.pop_front();
+					if (VariableValues.front().Type != ETokenType::Colon) {
+						std::cout << "Syntax error: a name should be followed by ':'\n";
+						bShouldReturnResult = false;
+						break;
+					}
+					VariableValues.pop_front();
+
+					std::expected<std::deque<Token<std::complex<double>>>, bool> VariableValue = ConsumeUntilToken(VariableValues, EStopConsumingCondition::Separator);
+					if (!VariableValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					std::expected<std::complex<double>, bool> ExpectedValue = Eval(VariableValue.value());
+					if (!ExpectedValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					BoundMin = static_cast<int64_t>(ExpectedValue.value().real());
+
+					VariableValue = ConsumeUntilToken(VariableValues, EStopConsumingCondition::Separator);
+					if (!VariableValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					ExpectedValue = Eval(VariableValue.value());
+					if (!ExpectedValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					BoundMax = static_cast<int64_t>(ExpectedValue.value().real());
+					std::expected<std::complex<double>, MathError<std::complex<double>>>
+						ExpectedSumValue = Sum(BoundMin, BoundMax, VariableName, &RangeBasedIteratorEvalWrapper, Body);
+					if (!ExpectedSumValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					CurrentNumbers.push_back(ExpectedSumValue.value());
+				}
+				else {
+					std::expected<std::deque<Token<std::complex<double>>>, bool> ExpectedVariableValues =
+						ConsumeUntilToken(Body, EStopConsumingCondition::CorrectParenthesis,
+							ETokenType::ClosedCurlyBrace);
+					if (!ExpectedVariableValues.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					std::deque<Token<std::complex<double>>> VariableValues = ExpectedVariableValues.value();
+					if (VariableValues.front().Type != ETokenType::Name) {
+						std::cout << "Syntax error: '{' should be followed by a name\n";
+						bShouldReturnResult = false;
+						break;
+					}
+					std::string VariableName = VariableValues.front().Name;
+					VariableValues.pop_front();
+					if (VariableValues.front().Type != ETokenType::Colon) {
+						std::cout << "Syntax error: a name should be followed by ':'\n";
+						bShouldReturnResult = false;
+						break;
+					}
+					VariableValues.pop_front();
+
+					std::vector<std::complex<double>> IteratedSet{};
+					while (!VariableValues.empty()) {
+						std::expected<std::deque<Token<std::complex<double>>>, bool> VariableValue = ConsumeUntilToken(VariableValues, EStopConsumingCondition::Separator);
+						if (!VariableValue.has_value()) {
+							bShouldReturnResult = false;
+							break;
+						}
+						std::expected<std::complex<double>, bool> ExpectedValue = Eval(VariableValue.value());
+						if (!ExpectedValue.has_value()) {
+							bShouldReturnResult = false;
+							break;
+						}
+						IteratedSet.push_back(ExpectedValue.value());
+					}
+					std::expected<std::complex<double>, MathError<std::complex<double>>> ExpectedSumValue = Sum(IteratedSet, VariableName, &SetBasedIteratorEvalWrapper, Body);
+					if (!ExpectedSumValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					CurrentNumbers.push_back(ExpectedSumValue.value());
+				}
+			}
+			else if (Body.back().Type == ETokenType::Product) {
+				Body.pop_back();
+				if (bIsRangeIterator) {
+					int64_t BoundMin = 0;
+					int64_t BoundMax = 0;
+					std::expected<std::deque<Token<std::complex<double>>>, bool> ExpectedVariableValues =
+						ConsumeUntilToken(Body, EStopConsumingCondition::CorrectParenthesis,
+							ETokenType::ClosedCurlyBrace);
+					if (!ExpectedVariableValues.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					std::deque<Token<std::complex<double>>> VariableValues = ExpectedVariableValues.value();
+					if (VariableValues.front().Type != ETokenType::Name) {
+						std::cout << "Syntax error: '{' should be followed by a name\n";
+						bShouldReturnResult = false;
+						break;
+					}
+					std::string VariableName = VariableValues.front().Name;
+					VariableValues.pop_front();
+					if (VariableValues.front().Type != ETokenType::Colon) {
+						std::cout << "Syntax error: a name should be followed by ':'\n";
+						bShouldReturnResult = false;
+						break;
+					}
+					VariableValues.pop_front();
+
+					std::expected<std::deque<Token<std::complex<double>>>, bool> VariableValue = ConsumeUntilToken(VariableValues, EStopConsumingCondition::Separator);
+					if (!VariableValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					std::expected<std::complex<double>, bool> ExpectedValue = Eval(VariableValue.value());
+					if (!ExpectedValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					BoundMin = static_cast<int64_t>(ExpectedValue.value().real());
+
+					VariableValue = ConsumeUntilToken(VariableValues, EStopConsumingCondition::Separator);
+					if (!VariableValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					ExpectedValue = Eval(VariableValue.value());
+					if (!ExpectedValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					BoundMax = static_cast<int64_t>(ExpectedValue.value().real());
+					std::expected<std::complex<double>, MathError<std::complex<double>>> ExpectedSumValue = Product(BoundMin, BoundMax, VariableName, &RangeBasedIteratorEvalWrapper, Body);
+					if (!ExpectedSumValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					CurrentNumbers.push_back(ExpectedSumValue.value());
+				}
+				else {
+					std::expected<std::deque<Token<std::complex<double>>>, bool> ExpectedVariableValues =
+						ConsumeUntilToken(Body, EStopConsumingCondition::CorrectParenthesis,
+							ETokenType::ClosedCurlyBrace);
+					if (!ExpectedVariableValues.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					std::deque<Token<std::complex<double>>> VariableValues = ExpectedVariableValues.value();
+					if (VariableValues.front().Type != ETokenType::Name) {
+						std::cout << "Syntax error: '{' should be followed by a name\n";
+						bShouldReturnResult = false;
+						break;
+					}
+					std::string VariableName = VariableValues.front().Name;
+					VariableValues.pop_front();
+					if (VariableValues.front().Type != ETokenType::Colon) {
+						std::cout << "Syntax error: a name should be followed by ':'\n";
+						bShouldReturnResult = false;
+						break;
+					}
+					VariableValues.pop_front();
+
+					std::vector<std::complex<double>> IteratedSet{};
+					while (!VariableValues.empty()) {
+						std::expected<std::deque<Token<std::complex<double>>>, bool> VariableValue = ConsumeUntilToken(VariableValues, EStopConsumingCondition::Separator);
+						if (!VariableValue.has_value()) {
+							bShouldReturnResult = false;
+							break;
+						}
+						std::expected<std::complex<double>, bool> ExpectedValue = Eval(VariableValue.value());
+						if (!ExpectedValue.has_value()) {
+							bShouldReturnResult = false;
+							break;
+						}
+						IteratedSet.push_back(ExpectedValue.value());
+					}
+					std::expected<std::complex<double>, MathError<std::complex<double>>> ExpectedSumValue = Product(IteratedSet, VariableName, &SetBasedIteratorEvalWrapper, Body);
+					if (!ExpectedSumValue.has_value()) {
+						bShouldReturnResult = false;
+						break;
+					}
+					CurrentNumbers.push_back(ExpectedSumValue.value());
+				}
+			}
+			else {
+				std::cout << "Error: Iterator was never finished\n";
+				bShouldReturnResult = false;
+				break;
+			}
+		}
+		break;
+		case ETokenType::OpenBracket:
+		{
+			std::expected<std::deque<Token<std::complex<double>>>, bool> ExpectedBody =
+				ConsumeUntilCorrectParenthesis(Tokens, ETokenType::ClosedBracket);
+			if (!ExpectedBody.has_value()) {
+				break;
+			}
+			std::deque<Token<std::complex<double>>> Body = ExpectedBody.value();
+			if (Body.front().Type != ETokenType::Name) {
+				std::cout << "Error: A unique name is expected after a '['.\n";
+				break;
+			}
+			std::string VariableName = Body.front().Name;
+			Body.pop_front();
+			if (Body.front().Type != ETokenType::Colon) {
+				std::cout << "Error: Expected ':' after variable name.\n";
+				break;
+			}
+			Body.pop_front();
+			std::expected<std::complex<double>, bool> VariableValue = Eval(Body);
+			if (!VariableValue.has_value()) {
+				break;
+			}
+			ComplexVariables.insert(std::pair(VariableName, VariableValue.value()));
+		}
+		break;
+		case ETokenType::Comma:
+			//Ignore it
+			break;
+		case ETokenType::Add:
+		{
+			auto [a, b] = GetTwo();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			CurrentNumbers.push_back(a + b);
+			break;
+		}
+		case ETokenType::Retain:
+			break;
+		case ETokenType::Substract:
+		{
+			auto [a, b] = GetTwo();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			CurrentNumbers.push_back(a - b);
+			break;
+		}
+		case ETokenType::Negate:
+		{
+			std::complex<double> a = GetOne();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			CurrentNumbers.push_back(-a);
+			break;
+		}
+		case ETokenType::Multiply:
+		{
+			auto [a, b] = GetTwo();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			CurrentNumbers.push_back(a * b);
+			break;
+		}
+		case ETokenType::Divide:
+		{
+			auto [a, b] = GetTwo();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			if (b.real() == 0.0 && b.imag() == 0.0) {
+				std::cout << MathError(
+					EOperation::Divide,
+					"Division by zero is not allowed",
+					std::vector<std::complex<double>>{a, b});
+				bShouldReturnResult = false;
+				break;
+			}
+			CurrentNumbers.push_back(a / b);
+			break;
+		}
+		case ETokenType::Power:
+		{
+			auto [a, b] = GetTwo();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			CurrentNumbers.push_back(std::pow(a, b));
+			break;
+		}
+		case ETokenType::Exponential:
+		{
+			std::complex<double> a = GetOne();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			CurrentNumbers.push_back(std::exp(a));
+			break;
+		}
+		case ETokenType::Logarithm:
+		{
+			auto [a, b] = GetTwo();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			CurrentNumbers.push_back(std::log(b) / std::log(a));
+			break;
+		}
+		case ETokenType::Ln:
+		{
+			std::complex<double> a = GetOne();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			CurrentNumbers.push_back(std::log(a));
+			break;
+		}
+		case ETokenType::Trig:
+		{
+			std::complex<double> a = GetOne();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			std::expected<std::complex<double>, MathError<std::complex<double>>> Temp = TrigFunction(a, CurrentToken.Function);
+			if (!Temp.has_value()) {
+				std::cout << Temp.error();
+				bShouldReturnResult = false;
+				break;
+			}
+			CurrentNumbers.push_back(Temp.value());
+			break;
+		}
+		case ETokenType::Factorial:
+		{
+			std::complex<double> a = GetOne();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			std::expected<std::complex<double>, MathError<std::complex<double>>> Temp = Factorial(a);
+			if (!Temp.has_value()) {
+				std::cout << Temp.error();
+				bShouldReturnResult = false;
+				break;
+			}
+			CurrentNumbers.push_back(Temp.value());
+			break;
+		}
+		case ETokenType::nCr:
+		{
+			auto [a, b] = GetTwo();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			std::expected<std::complex<double>, MathError<std::complex<double>>> Temp = nCr(a, b);
+			if (!Temp.has_value()) {
+				std::cout << Temp.error();
+				bShouldReturnResult = false;
+				break;
+			}
+			CurrentNumbers.push_back(Temp.value());
+			break;
+		}
+		case ETokenType::nPr:
+		{
+			auto [a, b] = GetTwo();
+			if (!bShouldReturnResult) {
+				break;
+			}
+			std::expected<std::complex<double>, MathError<std::complex<double>>> Temp = nPr(a, b);
+			if (!Temp.has_value()) {
+				std::cout << Temp.error();
+				bShouldReturnResult = false;
+				break;
+			}
+			CurrentNumbers.push_back(Temp.value());
+			break;
+		}
+		default:
+			std::cout << "Error: unexpected token: '" + TokenTypeNames.at(CurrentToken.Type) + "'\n";
+			bShouldReturnResult = false;
+			break;
+		}
+#ifdef ISDEBUGMODE
+		for (const auto& Tok : Tokens) {
+			std::cout << Tok << ' ';
+		}
+		std::cout << "| ";
+		for (std::complex<double> Num : CurrentNumbers) {
+			std::cout << Num << ' ';
+		}
+		std::cout << '\n';
+#endif
+		if (!bShouldReturnResult) {
+			break;
+		}
+	}
+	if (!bShouldReturnResult) {
+		return std::unexpected(false);
+	}
+	return CurrentNumbers.front();
 }
 
 #pragma endregion
